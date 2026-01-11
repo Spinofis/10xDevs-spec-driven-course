@@ -1,0 +1,52 @@
+# backend.mdc
+# AI Rules for VibeTravels - BACKEND (.NET 8 + MediatR)
+
+## BACKEND
+
+### DOTNET_STACK
+- Target .NET 8, ASP.NET Core Web API.
+- Keep controllers thin: no OpenAI calls, no orchestration logic in controllers.
+- Controllers delegate work to MediatR requests.
+
+### MEDIATR (REQUIRED)
+- Use MediatR for application flow:
+  - Commands for writes/start actions.
+  - Queries for reads/status fetch.
+- Keep handlers single-responsibility; no “god handlers”.
+- Do not perform HTTP/DB work in pipeline behaviors unless cross-cutting (logging, validation).
+- Use FluentValidation for request validation and integrate via MediatR pipeline behavior.
+
+### ARCHITECTURE
+- Use clear layering:
+  - API (Controllers) -> Application (MediatR Handlers) -> Infrastructure (DB/OpenAI clients)
+- Infrastructure services are injected into handlers; no direct Infrastructure usage in Controllers.
+
+### DATA_ACCESS (PostgreSQL)
+- Use EF Core with Npgsql provider.
+- Use migrations (no auto-create in production).
+- Use optimistic concurrency for job/result updates (concurrency token).
+
+### AUTH
+- Use JWT bearer auth for APIs.
+- Always enforce resource ownership at handler level for query/update/delete.
+
+### LONG_RUNNING_AI_GENERATION (MANDATORY)
+- OpenAI calls MUST NOT run inside the HTTP request pipeline.
+- Implement async job workflow:
+  - POST /trips/{id}/plan:generate (or similar) creates a Job row and returns 202 + jobId.
+  - Background worker processes pending jobs and writes result to DB.
+  - GET /jobs/{jobId} returns status (Pending/Running/Succeeded/Failed) + error when failed.
+- Persist everything required to resume processing after restart:
+  - job input snapshot, status, timestamps, attempt count, last error, result reference.
+- Do NOT use Task.Run() from controllers or handlers.
+- Implement worker as BackgroundService/IHostedService:
+  - polling DB for pending jobs (MVP, no external queue/broker).
+  - use bounded parallelism (max N concurrent jobs).
+- Implement timeouts and retries in the worker (never in controller/handler):
+  - retry transient OpenAI/HTTP failures up to a small limit.
+  - store attempt count and last error in DB.
+
+### HTTP_AND_ERROR_HANDLING
+- Use global exception middleware producing ProblemDetails.
+- Return 401/403 correctly; do not leak internal exceptions.
+- Add request logging with sensitive-data redaction (no prompts, no tokens).

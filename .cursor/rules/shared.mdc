@@ -1,0 +1,28 @@
+# shared.mdc
+# AI Rules for VibeTravels
+
+## SHARED (cross-cutting)
+
+### API_CONTRACT
+- Use JSON over HTTP; frontend never calls external AI providers (OpenAI).
+- Use REST conventions:
+  - POST for commands (create/start), GET for queries (read), PUT/PATCH for updates, DELETE for removal.
+- For long-running operations use async job pattern:
+  - Start endpoint returns 202 Accepted with { jobId, status } (no blocking until AI completes).
+  - Status endpoint returns { jobId, status, error?, resultRef? }.
+- Use ProblemDetails (RFC 7807) for errors with stable error codes.
+- Use correlation ID:
+  - Accept X-Correlation-Id, generate when missing, return in response headers.
+- Use UTC timestamps everywhere (DateTimeOffset in backend, ISO strings in frontend).
+- Use GUID/UUID identifiers for entities and jobs.
+
+### SECURITY
+- Use Authorization: Bearer <token> for authenticated endpoints.
+- Never expose secrets (OpenAI API key, prompt templates) to the frontend or logs.
+- Validate ownership on every read/write: user can access only their own resources.
+
+### PERFORMANCE_AND_RELIABILITY
+- All IO is async end-to-end (DB, HTTP).
+- Requests must be cancelable via CancellationToken.
+- Avoid in-memory state for workflow; persisted state in DB is the source of truth.
+- Add basic rate limiting on “start generation” endpoints (per user).

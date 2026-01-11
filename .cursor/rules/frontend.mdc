@@ -1,0 +1,32 @@
+# frontend.mdc
+# AI Rules for VibeTravels - FRONTEND (Angular + TS + Tailwind)
+
+## FRONTEND
+
+### ANGULAR_CODING_STANDARDS
+- Use standalone components/directives/pipes (no NgModules).
+- Prefer signals for local UI state; use RxJS for HTTP + polling streams.
+- Use inject() instead of constructor injection.
+- Use control flow blocks (@if/@for/@switch) instead of *ngIf/*ngFor when available.
+- Use OnPush change detection.
+- Keep UI components dumb; move API calls/state orchestration into services/facades.
+
+### HTTP_CLIENT
+- Centralize API access in typed services (one service per domain: auth, trips, jobs).
+- Use an HttpInterceptor for Bearer token injection and correlation-id forwarding.
+- Never call external AI APIs from the browser.
+
+### ASYNC_JOB_UI (MANDATORY, NO STREAMING)
+- Starting generation:
+  - call backend start endpoint, receive { jobId }.
+  - show “pending/running” state immediately; do not wait for final result in the same call.
+- Polling is the only mechanism:
+  - poll GET /jobs/{jobId} with a fixed interval (e.g., 1–2s) until terminal status.
+  - ensure polling is canceled on component destroy (DestroyRef/takeUntilDestroyed).
+  - guarantee only one polling loop per active job.
+- When job is Succeeded:
+  - fetch the trip/plan data via normal GET endpoint (do not assume job status response contains full plan).
+
+### UI_AND_STYLING
+- Use Tailwind utility classes; keep styles consistent.
+- Avoid heavy client-side validation logic beyond basic form constraints (server remains source of truth).
