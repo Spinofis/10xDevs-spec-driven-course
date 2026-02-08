@@ -313,6 +313,7 @@ CREATE INDEX IF NOT EXISTS plan_items_trip_id_date_order_idx
 CREATE TABLE IF NOT EXISTS trip_tags (
   trip_id uuid NOT NULL,
   tag_id  uuid NOT NULL,
+  order integer NULL,
   PRIMARY KEY (trip_id, tag_id)
 );
 
@@ -336,11 +337,11 @@ END $$;
 CREATE INDEX IF NOT EXISTS trip_tags_tag_id_idx
   ON trip_tags (tag_id);
 
--- User preference tags with weights.
+-- User preference tags with explicit order.
 CREATE TABLE IF NOT EXISTS user_preference_tags (
   user_id uuid    NOT NULL,
   tag_id  uuid    NOT NULL,
-  weight  integer NOT NULL DEFAULT 5,
+  order integer   NULL, 
   PRIMARY KEY (user_id, tag_id)
 );
 
@@ -360,11 +361,6 @@ BEGIN
       ON DELETE CASCADE;
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_preference_tags_weight_chk') THEN
-    ALTER TABLE user_preference_tags
-      ADD CONSTRAINT user_preference_tags_weight_chk
-      CHECK (weight BETWEEN 1 AND 10);
-  END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS user_preference_tags_tag_id_idx

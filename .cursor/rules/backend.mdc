@@ -7,6 +7,8 @@
 - Target .NET 8, ASP.NET Core Web API.
 - Keep controllers thin: no OpenAI calls, no orchestration logic in controllers.
 - Controllers delegate work to MediatR requests.
+- use minimal API instead of tradition controlers
+
 
 ### MEDIATR (REQUIRED)
 - Use MediatR for application flow:
@@ -15,6 +17,37 @@
 - Keep handlers single-responsibility; no “god handlers”.
 - Do not perform HTTP/DB work in pipeline behaviors unless cross-cutting (logging, validation).
 - Use FluentValidation for request validation and integrate via MediatR pipeline behavior.
+
+
+### LOCATION_AND_STRUCTURE (REQUIRED)
+- All DTOs used by commands/queries live under `VibeTravels.Application/Features/<Feature>/`.
+- For each feature:
+  - `Features/<Feature>/Commands/` contains commands and command DTOs.
+  - `Features/<Feature>/Queries/` contains queries and query DTOs.
+  - Models live inside `Commands/Models` and `Queries/Models` respectively.
+- `VibeTravels.Application/Contracts` is reserved for **Common** only (enums, paging, error envelope). Do not add feature DTOs there.
+
+### NAMING (REQUIRED)
+- Command use-cases:
+  - `XCommand`, `XCommandRequest`, `XCommandResponse`, `XCommandModel`.
+- Query use-cases:
+  - `XQuery`, `XQueryRequest`, `XQueryResponse`, `XQueryModel`.
+- Example:
+  - `UpdatePlanCommand`, `UpdatePlanCommandRequest`, `UpdatePlanCommandResponse`, `UpdatePlanCommandModel`.
+  - `GetPlanByTripIdQuery`, `GetPlanByTripIdQueryRequest`, `GetPlanByTripIdQueryResponse`, `PlanQueryModel`.
+
+### DTO_USAGE
+- Commands and queries **must** use their corresponding Models.
+- Prefer reusing the same Model in both request and response when feasible.
+- Use inheritance only when it reduces duplication without obscuring intent; avoid deep hierarchies.
+
+### FEATURE_CONSISTENCY
+- Keep request/response DTOs in the same feature folder as their handler.
+- Keep read models (query models) separate from write models (command models).
+
+### TAG_FIELDS (CANONICAL)
+- Tag ordering uses **`Order`** only. Do **not** use `Weight` or `SortOrder` in any DTO or model.
+
 
 ### ARCHITECTURE
 - Use clear layering:

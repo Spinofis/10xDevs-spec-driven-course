@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="VibeTravels.Application\VibeTravels.Application.csproj" />
+    <ProjectReference Include="VibeTravels.Infrastructure\VibeTravels.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="VibeTravels.Application\**" />
+    <Content Remove="VibeTravels.Application\**" />
+    <None Remove="VibeTravels.Application\**" />
+    <Compile Remove="VibeTravels.Domain\**" />
+    <Content Remove="VibeTravels.Domain\**" />
+    <None Remove="VibeTravels.Domain\**" />
+    <Compile Remove="VibeTravels.Infrastructure\**" />
+    <Content Remove="VibeTravels.Infrastructure\**" />
+    <None Remove="VibeTravels.Infrastructure\**" />
+  </ItemGroup>
+
+</Project>
