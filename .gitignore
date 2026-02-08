@@ -1,0 +1,51 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.ai/analysis for prd - summary.md
+/.ai/analysis_for_prd_summary.md
+/.ai/api_plan v2.md
+/.ai/api_plan.md
+/.ai/db-plan.md
+/.ai/db_plan.md
+/.ai/project_structure.md
+/.ai/tech_stack.md
+/.ai/use case plans/register-user-implementation-plan.md
+/.cursor/rules/backend.mdc
+/.ai/tech stack.md
+/.prompts/apli plan notes.md
+/.prompts/db na docker.md
+/.prompts/generowanie db w sql prompts.md
+/.prompts/generowanie modelu  prompt.md
+/.prompts/plan implementacji endpoint/register user prompt
+/.prompts/planowanie db.md
+/.temp/db na docker.md
+/.temp/generowanie db w sql.md
+/.temp/planowanie db.md
+/.vs/10xDevs-spec-driven-course/CopilotIndices/17.13.444.19527/CodeChunks.db
+/.vs/10xDevs-spec-driven-course/CopilotIndices/17.13.444.19527/SemanticSymbols.db
+/.vs/10xDevs-spec-driven-course/FileContentIndex/c9409b18-3784-4ff2-a2dc-17e6d90633ef.vsidx
+/.vs/10xDevs-spec-driven-course/v17/.wsuo
+/.vs/10xDevs-spec-driven-course/v17/DocumentLayout.json
+/.vs/slnx.sqlite
+/.vs/VSWorkspaceState.json
+/VibeTravelers.API/.vs/ProjectEvaluation/vibetravelers.api.metadata.v9.bin
+/VibeTravelers.API/.vs/ProjectEvaluation/vibetravelers.api.projects.v9.bin
+/VibeTravelers.API/.vs/ProjectEvaluation/vibetravelers.api.strings.v9.bin
+/VibeTravelers.API/.vs/VibeTravelers.API/CopilotIndices/17.13.444.19527
+/VibeTravelers.API/.vs/VibeTravelers.API/CopilotIndices/17.13.444.19527/CodeChunks.db
+/VibeTravelers.API/.vs/VibeTravelers.API/CopilotIndices/17.13.444.19527/CodeChunks.db-shm
+/VibeTravelers.API/.vs/VibeTravelers.API/CopilotIndices/17.13.444.19527/SemanticSymbols.db
+/VibeTravelers.API/.vs/VibeTravelers.API/DesignTimeBuild
+/VibeTravelers.API/.vs/VibeTravelers.API
+/VibeTravelers.API/.vs/VibeTravelers.API/v17
+/VibeTravelers.API/bin/Debug/net8.0/FluentValidation.dll
+/VibeTravelers.API/bin/Debug/net8.0
+/VibeTravelers.API/obj
+/VibeTravelers.API/VibeTravels.Application/bin/Debug/net8.0
+/VibeTravelers.API/VibeTravels.Application/obj
+/VibeTravelers.API/VibeTravels.Domain/bin/Debug/net8.0
+/VibeTravelers.API/VibeTravels.Domain/obj/Debug/net8.0
+/VibeTravelers.API/VibeTravels.Domain/obj
+/VibeTravelers.API/VibeTravels.Infrastructure/bin/Debug/net8.0
+/VibeTravelers.API/VibeTravels.Infrastructure/obj

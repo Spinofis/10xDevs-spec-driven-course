@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      # Zmienne środowiskowe - w produkcji użyj pliku .env (nie commituj go do repo!)
+      POSTGRES_USER: bartek
+      POSTGRES_PASSWORD: bartek123
+      POSTGRES_DB: VibeTravelers
+      # Dla produkcji: rozważ użycie secrets lub zmiennych środowiskowych z systemu
+    ports:
+      # Port mapowanie: host:container
+      # W produkcji: rozważ usunięcie mapowania portów jeśli baza jest tylko wewnątrz sieci Docker
+      # lub użyj bardziej restrykcyjnych ustawień firewall
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Trwałe przechowywanie danych - dane przetrwają restart kontenera
+      - postgres_data:/var/lib/postgresql/data
+      # Opcjonalnie: możesz dodać volume dla init scripts
+      # - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  # Named volume zapewnia trwałość danych
+  # W produkcji: rozważ użycie bind mount do konkretnej lokalizacji na hoście
+  # lub skonfiguruj backup tego volume
+  postgres_data:
+    driver: local
+
+networks:
+  app_network:
+    driver: bridge
