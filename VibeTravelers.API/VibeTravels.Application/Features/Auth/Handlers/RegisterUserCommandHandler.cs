@@ -2,9 +2,10 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Common.Errors;
+using VibeTravels.Application.Features.Auth.Commands;
 using VibeTravels.Domain.Entities.Users;
 
-namespace VibeTravels.Application.Features.Auth.Commands;
+namespace VibeTravels.Application.Features.Auth.Handlers;
 
 public sealed class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, RegisterUserCommandResponse>
 {

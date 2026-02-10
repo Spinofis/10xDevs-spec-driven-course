@@ -32,20 +32,17 @@ public sealed class ExceptionHandlingMiddleware
 
     private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
-        var (statusCode, code, detail) = ex switch
+        var (statusCode, code) = ex switch
         {
-            ValidationException validation => (
+            AppException appEx => (
+                appEx.StatusCode,
+                appEx.ErrorCode),
+            ValidationException => (
                 HttpStatusCode.BadRequest,
-                ValidationErrorException.ErrorCode,
-                "One or more validation errors occurred."),
-            EmailTakenException => (
-                HttpStatusCode.Conflict,
-                EmailTakenException.ErrorCode,
-                "Email is already registered."),
+                ValidationErrorException.ErrorCode),
             _ => (
                 HttpStatusCode.InternalServerError,
-                "INTERNAL_ERROR",
-                "An unexpected error occurred.")
+                "INTERNAL_ERROR")
         };
 
         if ((int)statusCode >= 500)
@@ -60,7 +57,7 @@ public sealed class ExceptionHandlingMiddleware
         {
             Status = (int)statusCode,
             Title = code,
-            Detail = detail,
+            Detail = ex.Message,
             Instance = context.Request.Path
         };
 
