@@ -16,5 +16,5 @@ public sealed record TripInputSnapshotDto(
 public sealed record ListTripInputSnapshotsRequest(int? Limit, string? Cursor, string? Sort)
     : IPagedRequest, ISortableRequest;
 
-public sealed record ListTripInputSnapshotsResponse(IReadOnlyList<TripInputSnapshotDto> Items, string? NextCursor)
-    : PagedResponse<TripInputSnapshotDto>(Items, NextCursor);
+public sealed record ListTripInputSnapshotsResponse(IReadOnlyList<TripInputSnapshotDto> Items)
+    : PagedResponse<TripInputSnapshotDto>(Items);

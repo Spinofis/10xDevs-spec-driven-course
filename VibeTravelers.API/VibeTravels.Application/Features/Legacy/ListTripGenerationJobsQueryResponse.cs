@@ -5,6 +5,5 @@ using VibeTravels.Application.Features.Legacy.Jobs.Models;
 namespace VibeTravels.Application.Features.Legacy.Jobs.Queries;
 
 public sealed record ListTripGenerationJobsQueryResponse(
-    IReadOnlyList<GenerationJobListItemDto> Items,
-    string? NextCursor)
-    : PagedResponse<GenerationJobListItemDto>(Items, NextCursor);
+    IReadOnlyList<GenerationJobListItemDto> Items)
+    : PagedResponse<GenerationJobListItemDto>(Items);

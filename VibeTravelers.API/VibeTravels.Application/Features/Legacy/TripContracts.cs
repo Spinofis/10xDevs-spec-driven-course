@@ -61,8 +61,8 @@ public sealed record ListTripsRequest(
     string? Sort)
     : IPagedRequest, ISortableRequest;
 
-public sealed record ListTripsResponse(IReadOnlyList<TripDto> Items, string? NextCursor)
-    : PagedResponse<TripDto>(Items, NextCursor);
+public sealed record ListTripsResponse(IReadOnlyList<TripDto> Items)
+    : PagedResponse<TripDto>(Items);
 
 public sealed record GetTripResponse(
     TripDto Trip,

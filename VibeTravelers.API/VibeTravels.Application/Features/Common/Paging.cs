@@ -11,4 +11,4 @@ public interface ISortableRequest
     string? Sort { get; }
 }
 
-public record PagedResponse<T>(IReadOnlyList<T> Items, string? NextCursor);
+public record PagedResponse<T>(IReadOnlyList<T> Items);

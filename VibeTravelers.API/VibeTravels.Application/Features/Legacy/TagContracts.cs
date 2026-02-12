@@ -9,5 +9,5 @@ public sealed record TagDto(Guid Id, string Code, string DisplayName, DateTimeOf
 public sealed record ListTagsRequest(int? Limit, string? Cursor, string? Sort)
     : IPagedRequest, ISortableRequest;
 
-public sealed record ListTagsResponse(IReadOnlyList<TagDto> Items, string? NextCursor)
-    : PagedResponse<TagDto>(Items, NextCursor);
+public sealed record ListTagsResponse(IReadOnlyList<TagDto> Items)
+    : PagedResponse<TagDto>(Items);

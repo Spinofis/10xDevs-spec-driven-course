@@ -63,5 +63,5 @@ public sealed record TripJobListItemDto(
 public sealed record ListTripJobsRequest(int? Limit, string? Cursor, string? Sort)
     : IPagedRequest, ISortableRequest;
 
-public sealed record ListTripJobsResponse(IReadOnlyList<TripJobListItemDto> Items, string? NextCursor)
-    : PagedResponse<TripJobListItemDto>(Items, NextCursor);
+public sealed record ListTripJobsResponse(IReadOnlyList<TripJobListItemDto> Items)
+    : PagedResponse<TripJobListItemDto>(Items);

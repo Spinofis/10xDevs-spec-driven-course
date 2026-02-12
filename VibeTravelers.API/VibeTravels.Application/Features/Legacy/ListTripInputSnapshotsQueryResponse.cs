@@ -4,5 +4,5 @@ using VibeTravels.Application.Features.Legacy.Trips.Models;
 
 namespace VibeTravels.Application.Features.Legacy.Trips.Queries;
 
-public sealed record ListTripInputSnapshotsQueryResponse(IReadOnlyList<TripInputSnapshotDto> Items, string? NextCursor)
-    : PagedResponse<TripInputSnapshotDto>(Items, NextCursor);
+public sealed record ListTripInputSnapshotsQueryResponse(IReadOnlyList<TripInputSnapshotDto> Items)
+    : PagedResponse<TripInputSnapshotDto>(Items);

@@ -31,6 +31,7 @@ namespace VibeTravelers.API
             app.UseAuthorization();
 
             app.MapAuthEndpoints();
+            app.MapTagsEndpoints();
 
             app.Run();
         }
