@@ -49,3 +49,11 @@
 /VibeTravelers.API/VibeTravels.Domain/obj
 /VibeTravelers.API/VibeTravels.Infrastructure/bin/Debug/net8.0
 /VibeTravelers.API/VibeTravels.Infrastructure/obj
+/.prompts/implementacja prompts/get tags
+/.prompts/plan implementacji endpoint
+/.vs/VibeTravelers/CopilotIndices/17.13.444.19527
+/.vs/VibeTravelers
+/tests/VibeTravelers.API.IntegrationTests/bin/Debug/net8.0
+/tests/VibeTravelers.API.IntegrationTests/obj
+/tests/VibeTravels.Application.Tests/bin/Debug/net8.0
+/tests/VibeTravels.Application.Tests/obj
