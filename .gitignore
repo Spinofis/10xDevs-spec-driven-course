@@ -57,3 +57,9 @@
 /tests/VibeTravelers.API.IntegrationTests/obj
 /tests/VibeTravels.Application.Tests/bin/Debug/net8.0
 /tests/VibeTravels.Application.Tests/obj
+/tests/VibeTravelers.API.IntegrationTests/bin/Release/net8.0
+/tests/VibeTravels.Application.Tests/bin/Release/net8.0
+/VibeTravelers.API/bin/Release/net8.0
+/VibeTravelers.API/VibeTravels.Application/bin/Release/net8.0
+/VibeTravelers.API/VibeTravels.Domain/bin/Release/net8.0
+/VibeTravelers.API/VibeTravels.Infrastructure/bin/Release/net8.0
