@@ -14,9 +14,20 @@
 - Use MediatR for application flow:
   - Commands for writes/start actions.
   - Queries for reads/status fetch.
-- Keep handlers single-responsibility; no “god handlers”.
+- Keep handlers single-responsibility; no â€śgod handlersâ€ť.
 - Do not perform HTTP/DB work in pipeline behaviors unless cross-cutting (logging, validation).
-- Use FluentValidation for request validation and integrate via MediatR pipeline behavior.
+- Validation must not rely on exceptions for expected failures; prefer returning `Result` failures.
+
+
+### RESULT_PATTERN (REQUIRED)
+- Prefer `Result` / `Result<T>` over domain/validation exceptions for expected failures.
+- A handler that can fail (validation, conflicts, missing data, business rules) returns a `Result` and never throws for those cases.
+- A query handler that cannot fail (no expected errors) returns plain data (no `Result`).
+- A single `Result` may contain multiple errors (`Errors` list); API maps failures to `ProblemDetails` with `errors[]`.
+- Minimal API endpoints always map `Result` to HTTP:
+  - success -> `200 OK` (or `201 Created` when applicable)
+  - failure -> `ProblemDetails` using the `Result` errors
+- Global exception middleware only handles truly unexpected exceptions (500).
 
 
 ### LOCATION_AND_STRUCTURE (REQUIRED)
@@ -83,3 +94,4 @@
 - Use global exception middleware producing ProblemDetails.
 - Return 401/403 correctly; do not leak internal exceptions.
 - Add request logging with sensitive-data redaction (no prompts, no tokens).
+

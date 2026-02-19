@@ -1,8 +1,5 @@
-using System.Net;
 using System.Text.Json;
-using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
-using VibeTravels.Application.Common.Errors;
 
 namespace VibeTravelers.API.Middleware;
 
@@ -32,44 +29,28 @@ public sealed class ExceptionHandlingMiddleware
 
     private async Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
-        var (statusCode, code) = ex switch
-        {
-            AppException appEx => (
-                appEx.StatusCode,
-                appEx.ErrorCode),
-            ValidationException => (
-                HttpStatusCode.BadRequest,
-                ValidationErrorException.ErrorCode),
-            _ => (
-                HttpStatusCode.InternalServerError,
-                "INTERNAL_ERROR")
-        };
+        _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
 
-        if ((int)statusCode >= 500)
-            _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
-        else
-            _logger.LogDebug(ex, "Client error: {Code} - {Message}", code, ex.Message);
-
-        context.Response.StatusCode = (int)statusCode;
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "application/problem+json";
 
+
+        //TO DO on other that prod should return exceptio details
         var problem = new ProblemDetails
         {
-            Status = (int)statusCode,
-            Title = code,
-            Detail = ex.Message,
+            Status = StatusCodes.Status500InternalServerError,
+            Title = "INTERNAL_ERROR",
+            Detail = "An unexpected error occurred.",
             Instance = context.Request.Path
         };
 
-        if (ex is ValidationException validationEx && validationEx.Errors.Any())
-        {
-            problem.Extensions["errors"] = validationEx.Errors
-                .GroupBy(e => e.PropertyName)
-                .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
-        }
-
         var traceId = context.TraceIdentifier;
         problem.Extensions["traceId"] = traceId;
+
+        var correlationId = context.Response.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? context.Request.Headers["X-Correlation-Id"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(correlationId) is false)
+            problem.Extensions["correlationId"] = correlationId;
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(problem, JsonOptions));
     }

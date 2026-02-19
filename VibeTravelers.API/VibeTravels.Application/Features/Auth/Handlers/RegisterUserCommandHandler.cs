@@ -1,13 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
-using VibeTravels.Application.Common.Errors;
+using VibeTravels.Application.Common.Results;
 using VibeTravels.Application.Features.Auth.Commands;
 using VibeTravels.Domain.Entities.Users;
 
 namespace VibeTravels.Application.Features.Auth.Handlers;
 
-public sealed class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, RegisterUserCommandResponse>
+public sealed class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, Result>
 {
     private readonly IAppDbContext _db;
 
@@ -16,7 +16,7 @@ public sealed class RegisterUserCommandHandler : IRequestHandler<RegisterUserCom
         _db = db;
     }
 
-    public async Task<RegisterUserCommandResponse> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
         var email = request.Request.Email.Trim().ToLowerInvariant();
 
@@ -24,12 +24,12 @@ public sealed class RegisterUserCommandHandler : IRequestHandler<RegisterUserCom
             .AnyAsync(u => u.Email == email, cancellationToken);
 
         if (exists)
-            throw new EmailTakenException();
+            return Result.Fail(ResultErrors.EmailTaken(nameof(request.Request.Email)));
 
         var user = User.Create(email, request.Request.Password);
         _db.Users.Add(user);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return new RegisterUserCommandResponse();
+        return Result.Ok();
     }
 }

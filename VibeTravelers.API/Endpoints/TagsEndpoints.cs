@@ -13,7 +13,6 @@ public static class TagsEndpoints
         group.MapGet("/", ListTags)
             .WithName("ListTags")
             .Produces<ListTagsQueryResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
             .AllowAnonymous();
     }
 

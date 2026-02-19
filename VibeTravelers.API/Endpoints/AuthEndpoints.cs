@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VibeTravels.Application.Features.Auth.Commands;
+using VibeTravelers.API;
 
 namespace VibeTravelers.API.Endpoints;
 
@@ -28,8 +29,8 @@ public static class AuthEndpoints
             ?? Guid.NewGuid().ToString();
         httpContext.Response.Headers["X-Correlation-Id"] = correlationId;
 
-        var response = await mediator.Send(new RegisterUserCommand(request), cancellationToken);
+        var result = await mediator.Send(new RegisterUserCommand(request), cancellationToken);
 
-        return Results.Json(new { }, statusCode: StatusCodes.Status201Created);
+        return result.ToHttpResult(httpContext, onSuccess: () => Results.Json(new { }, statusCode: StatusCodes.Status201Created));
     }
 }
