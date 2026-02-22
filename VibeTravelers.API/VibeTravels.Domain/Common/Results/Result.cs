@@ -1,4 +1,4 @@
-namespace VibeTravels.Application.Common.Results;
+namespace VibeTravels.Domain.Common.Results;
 
 public class Result
 {
@@ -37,3 +37,4 @@ public class Result<T> : Result
             ? new(false, default, new[] { ResultErrors.Unknown() })
             : new(false, default, errors);
 }
+

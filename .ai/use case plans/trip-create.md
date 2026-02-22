@@ -2,12 +2,13 @@
 
 ## 1. Przegląd punktu końcowego
 Endpoint tworzy nową wycieczkę (`trip`) wraz z opcjonalnymi tagami wycieczki (`trip_tag`). Jest to endpoint typu *command/write* i wymaga uwierzytelnienia (JWT Bearer). Po utworzeniu zasobu zwraca `201 Created` z pełnym DTO wycieczki oraz listą dołączonych tagów.
+Na razie pomin autoryzacje!!!
 
 ## 2. Szczegóły żądania
 - Metoda HTTP: `POST`
 - Struktura URL: `/trips`
 - Nagłówki:
-  - Wymagane: `Authorization: Bearer <token>`
+  - Wymagane: `Authorization: Bearer <token>`  -> Na razie pomin
   - Opcjonalne: `X-Correlation-Id` (jeśli brak, generowany i zwracany w odpowiedzi)
 - Parametry:
   - Wymagane: brak (wszystko w body)

@@ -4,6 +4,7 @@ using VibeTravels.Application.Features.Tags.Handlers;
 using VibeTravels.Application.Features.Tags.Queries;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Users;
+using VibeTravels.Domain.ValueObjects;
 
 namespace VibeTravels.Application.Tests.Tags;
 
@@ -76,5 +77,21 @@ public sealed class ListTagsQueryHandlerTests
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Tag> Tags => Set<Tag>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<User>(builder =>
+            {
+                builder.Property(e => e.Email).HasConversion(
+                    email => email.Value,
+                    value => Email.From(value));
+
+                builder.Property(e => e.PasswordHash).HasConversion(
+                    password => password.Value,
+                    value => Password.From(value));
+            });
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }

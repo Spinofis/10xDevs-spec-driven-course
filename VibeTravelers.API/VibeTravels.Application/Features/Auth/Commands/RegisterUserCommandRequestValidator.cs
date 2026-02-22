@@ -1,4 +1,5 @@
 using FluentValidation;
+using VibeTravels.Domain.ValueObjects;
 
 namespace VibeTravels.Application.Features.Auth.Commands;
 
@@ -9,9 +10,10 @@ public sealed class RegisterUserCommandRequestValidator : AbstractValidator<Regi
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required.")
             .EmailAddress().WithMessage("Invalid email format.")
-            .MaximumLength(256);
+            .MaximumLength(Email.MaxLength);
 
         RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Password is required.");
+            .NotEmpty().WithMessage("Password is required.")
+            .MaximumLength(Password.MaxLength);
     }
 }

@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace VibeTravels.Application.Common.Results;
+namespace VibeTravels.Domain.Common.Results;
 
 public readonly record struct Error(
     string Code,

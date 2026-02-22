@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
-using VibeTravels.Application.Common.Results;
+using VibeTravels.Domain.Common.Results;
 
 namespace VibeTravelers.API;
 
@@ -54,4 +54,3 @@ public static class ResultHttpMapper
             extensions: extensions);
     }
 }
-

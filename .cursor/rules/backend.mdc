@@ -18,6 +18,18 @@
 - Do not perform HTTP/DB work in pipeline behaviors unless cross-cutting (logging, validation).
 - Validation must not rely on exceptions for expected failures; prefer returning `Result` failures.
 
+### VALIDATION_AND_VALUE_OBJECTS (REQUIRED)
+- Use FluentValidation for validating command/query inputs (and nested request DTOs).
+- Validate basic input at the edge (API/Application): required fields, max lengths, formats (e.g., email/password not empty).
+- Enforce invariants in the Domain as well:
+  - Model concepts like `Email` and `Password` as Value Objects (`VibeTravels.Domain/ValueObjects`).
+  - Entities (e.g., `User`) should store/accept Value Objects instead of raw strings.
+  - Entity factory methods must not allow invalid state to be created.
+  - Handlers must not construct Value Objects (no `Email.From(...)` / `Password.From(...)` in handlers); call entity factories returning `Result` (e.g., `User.Create(...)`) instead of `bool` + `out` params.
+- Persistence:
+  - Add EF Core `HasConversion` mappings for Value Objects to primitive DB types.
+  - Keep rules consistent between Value Objects, FluentValidation validators, and EF configuration.
+
 
 ### RESULT_PATTERN (REQUIRED)
 - Prefer `Result` / `Result<T>` over domain/validation exceptions for expected failures.
@@ -94,4 +106,3 @@
 - Use global exception middleware producing ProblemDetails.
 - Return 401/403 correctly; do not leak internal exceptions.
 - Add request logging with sensitive-data redaction (no prompts, no tokens).
-

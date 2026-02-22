@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace VibeTravels.Application.Common.Results;
+namespace VibeTravels.Domain.Common.Results;
 
 public static class ResultErrors
 {
@@ -25,3 +25,4 @@ public static class ResultErrors
             Status: HttpStatusCode.InternalServerError,
             Target: target);
 }
+

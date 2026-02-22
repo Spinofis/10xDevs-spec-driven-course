@@ -1,5 +1,5 @@
 using MediatR;
-using VibeTravels.Application.Common.Results;
+using VibeTravels.Domain.Common.Results;
 
 namespace VibeTravels.Application.Features.Auth.Commands;
 
