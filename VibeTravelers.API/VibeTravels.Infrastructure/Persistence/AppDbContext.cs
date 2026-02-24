@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
+using VibeTravels.Domain.Entities.Trips;
 using VibeTravels.Domain.Entities.Users;
 using VibeTravels.Domain.Entities.Tags;
 
@@ -11,6 +12,8 @@ public sealed class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<Trip> Trips => Set<Trip>();
+    public DbSet<TripTag> TripTags => Set<TripTag>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

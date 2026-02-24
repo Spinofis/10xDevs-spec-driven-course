@@ -14,17 +14,15 @@ Na razie pomin autoryzacje!!!
   - Wymagane: brak (wszystko w body)
   - Opcjonalne: brak
 - Request Body (JSON):
-  - Wymagane:
     - `title` (string, niepusty)
     - `placeText` (string, niepusty)
-  - Opcjonalne:
     - `noteText` (string|null)
     - `dateFrom` (YYYY-MM-DD|null)
     - `dateTo` (YYYY-MM-DD|null) — jeśli podane obie daty: `dateTo >= dateFrom`
     - `stayLengthMinDays` (int|null) — jeśli podane: `> 0`
     - `stayLengthMaxDays` (int|null) — jeśli podane: `> 0`
     - `peopleCount` (int|null) — jeśli podane: `> 0`
-    - `budgetLevel` (`low|medium|high|null`)
+    - `c` (`low|medium|high|null`)
     - `pace` (`relaxed|normal|fast|null`)
     - `tags` (array|null):
       - element: `{ "tagId": "uuid", "order": 1 }`
@@ -35,6 +33,9 @@ Na razie pomin autoryzacje!!!
   - `TripQueryModel`, `TripTagQueryModel`
   - `TagQueryModel` (Application/Features/Tags/Queries/Models)
   - Enumy: `BudgetLevel`, `Pace` (Application/Features/Common/Enums.cs)
+Wymagane zawsze: peopleCount, dateFrom, dateTo, stayLengthMinDays, stayLengthMaxDays.
+Dodatkowo: user musi albo uzupelnic notatki albo placeText albo tagi
+
 
 ## 3. Szczegóły odpowiedzi
 - `201 Created`:
@@ -81,19 +82,21 @@ Na razie pomin autoryzacje!!!
 1. Klient wywołuje `POST /trips` z `Authorization: Bearer <token>` i opcjonalnym `X-Correlation-Id`.
 2. Minimal API (`TripsEndpoints`) odczytuje/generuje `X-Correlation-Id` i ustawia go w odpowiedzi.
 3. Endpoint wyciąga `userId` z kontekstu autoryzacji (JWT claim, np. `sub`/`nameidentifier`).
-4. Endpoint mapuje payload do `CreateTripCommandRequest` (z `CreateTripCommandModel`) i wysyła `CreateTripCommand` przez `IMediator`.
-5. `CreateTripCommandHandler`:
-   - waliduje wymagania biznesowe (poza FluentValidation tylko, jeśli potrzebne),
+4. Endpoint mapuje payload do `CreateTripCommandRequest` (z `CreateTripCommandModel`) i wysyła `CreateTripCommand` przez `IMediator` (command zwraca `Result<CreateTripCommandResponse>`).
+5. FluentValidation uruchamia się w pipeline (MediatR `ValidationBehavior`) i przy błędach zwraca `Result.Fail` z `VALIDATION_ERROR` (400).
+6. `CreateTripCommandHandler`:
+   - nie tworzy Value Objects ręcznie; wywołuje fabryki domenowe zwracające `Result` (np. `Trip.Create(...)`),
    - w transakcji:
      - tworzy rekord `trip` z `userId` (ownership),
      - jeśli `tags` podane:
        - weryfikuje istnienie wszystkich `tagId` (jeden SELECT po IN),
+       - jeśli czegoś brakuje → `Result.Fail` z `TAG_NOT_FOUND` (404),
        - tworzy rekordy `trip_tag` z zachowaniem `order` (domyślnie `0`) i spójnością unikalności `(trip_id, tag_id)`.
    - mapuje wynik do `TripQueryModel` + listy `TripTagQueryModel` (posortowane po `order` rosnąco).
-6. Endpoint zwraca `201 Created` z JSON-em `{ trip, tags }`.
+7. Endpoint mapuje `Result` do HTTP przez `ResultHttpMapper` (`ToHttpResult`) i zwraca `201 Created` z JSON-em `{ trip, tags }` albo `ProblemDetails`.
 
 ## 5. Względy bezpieczeństwa
-- Endpoint musi być chroniony JWT (`RequireAuthorization()`).
+- Endpoint musi być chroniony JWT (`RequireAuthorization()`). -> na razie pomin autoryzacje
 - `userId` musi pochodzić wyłącznie z tokenu (nigdy z body/query), aby uniknąć IDOR i fałszywego przypisania ownership.
 - W handlerze zapisuj zawsze `trip.user_id = userId` z kontekstu, niezależnie od danych wejściowych.
 - Waliduj rozmiary wejścia (limity długości dla `title/placeText/noteText`), aby ograniczyć ryzyko nadużyć (DoS poprzez duże payloady).
@@ -116,7 +119,7 @@ Na razie pomin autoryzacje!!!
 - `500 INTERNAL_ERROR`:
   - błędy DB (np. constrainty), transakcji, mapowania lub inne nieobsłużone wyjątki.
 
-Mapowanie do `ProblemDetails` realizuje `ExceptionHandlingMiddleware`. Brak dedykowanej tabeli błędów w aktualnym planie DB: użyj `ILogger` + `traceId` w `ProblemDetails`. (Jeśli w przyszłości pojawi się tabela błędów/auditów, można dodać event `trip_created` w `audit_event` – opcjonalne.)
+Mapowanie `Result` → `ProblemDetails` realizuje `ResultHttpMapper` (`ToHttpResult`). `ExceptionHandlingMiddleware` obsługuje tylko nieoczekiwane wyjątki (500). Brak dedykowanej tabeli błędów w aktualnym planie DB: użyj `ILogger` + `traceId` w `ProblemDetails`. (Jeśli w przyszłości pojawi się tabela błędów/auditów, można dodać event `trip_created` w `audit_event` – opcjonalne.)
 
 ## 7. Wydajność
 - Weryfikacja tagów: jeden SELECT `WHERE id IN (...)` + porównanie liczności, zamiast N zapytań.
@@ -138,34 +141,36 @@ Mapowanie do `ProblemDetails` realizuje `ExceptionHandlingMiddleware`. Brak dedy
    - Dodaj konfigurację `HttpJsonOptions` z `JsonStringEnumConverter(JsonNamingPolicy.CamelCase)`.
    - Zweryfikuj serializację `DateOnly` jako `"YYYY-MM-DD"` (w razie potrzeby dodaj konwerter dla `DateOnly`).
 4. **Warstwa danych: encje i EF Core**
-   - Dodaj encje domenowe + konfiguracje EF:
-     - `Trip` (tabela `trip`) z polami zgodnymi ze specyfikacją,
-     - `TripTag` (tabela `trip_tag`) z `(trip_id, tag_id)` + `Order`.
-   - Zaktualizuj `IAppDbContext` oraz `AppDbContext` o `DbSet<Trip>` i `DbSet<TripTag>`.
-   - Dodaj migracje tworzące tabele/constrainty/indeksy.
+    - Dodaj encje domenowe + konfiguracje EF:
+      - `Trip` (tabela `trip`) z polami zgodnymi ze specyfikacją,
+      - `TripTag` (tabela `trip_tag`) z `(trip_id, tag_id)` + `Order`.
+    - Modeluj pola wymagające walidacji jako Value Objects w Domain (z logiką + fabrykami zwracającymi `Result`) i dodaj `HasConversion` w konfiguracjach EF.
+    - Zaktualizuj `IAppDbContext` oraz `AppDbContext` o `DbSet<Trip>` i `DbSet<TripTag>`.
+    - Dodaj migracje tworzące tabele/constrainty/indeksy.
 5. **Warstwa aplikacyjna: Command + Validator**
-   - Upewnij się, że `CreateTripCommand` implementuje `IRequest<CreateTripCommandResponse>`.
-   - Dodaj `CreateTripCommandRequestValidator` (FluentValidation) walidujący `request.Model.*`:
-     - `Title`, `PlaceText` wymagane,
-     - relacje dat, wartości dodatnie,
-     - limit liczby tagów i dopuszczalne `Order` (np. `>= 0`).
-   - Dodaj dedykowany wyjątek `TagNotFoundException : AppException` (`404`, kod `TAG_NOT_FOUND`) albo wspólny `NotFoundException` z kodami per zasób.
+    - Upewnij się, że `CreateTripCommand` implementuje `IRequest<Result<CreateTripCommandResponse>>` (wtedy ValidationBehavior może zwrócić `Result.Fail` dla FluentValidation).
+    - Dodaj `CreateTripCommandRequestValidator` (FluentValidation) walidujący `request.Model.*`:
+      - `Title`, `PlaceText` wymagane,
+      - relacje dat, wartości dodatnie,
+      - limit liczby tagów i dopuszczalne `Order` (np. `>= 0`).
+    - Zamiast wyjątków dla expected failures: zwracaj `Result.Fail` z błędem `TAG_NOT_FOUND` (`404`) z handlera.
 6. **Handler MediatR**
-   - Dodaj `CreateTripCommandHandler`:
-     - pobranie `userId` (rekomendacja: do `CreateTripCommandRequest` dodaj `Guid UserId` i uzupełniaj go w endpointzie; alternatywnie: `ICurrentUserContext` w Application.Abstractions),
-     - transakcyjny zapis `trip` + `trip_tag`,
-     - walidacja istnienia tagów,
-     - mapowanie do `TripQueryModel` i `TripTagQueryModel`.
+    - Dodaj `CreateTripCommandHandler`:
+      - pobranie `userId` (rekomendacja: do `CreateTripCommandRequest` dodaj `Guid UserId` i uzupełniaj go w endpointzie; alternatywnie: `ICurrentUserContext` w Application.Abstractions),
+      - transakcyjny zapis `trip` + `trip_tag`,
+      - walidacja istnienia tagów,
+      - mapowanie do `TripQueryModel` i `TripTagQueryModel`.
+    - Handler nie konstruuje Value Objects (brak `new ...` / `...From(...)`); tworzenie i walidacja dzieje się w domenie (fabryki zwracają `Result`).
    - Wyodrębnij logikę, jeśli zacznie puchnąć:
      - `ITripCreationService` (aplikacyjny) dla: walidacji tagów, budowy encji, transakcji,
      - lub mały helper do mapowania `Trip` → `TripQueryModel` (bez logiki biznesowej).
 7. **Endpoint minimal API**
-   - Dodaj `VibeTravelers.API/Endpoints/TripsEndpoints.cs`:
-     - `var group = app.MapGroup("/trips").WithTags("Trips");`
-     - `group.MapPost("/", CreateTrip).RequireAuthorization();`
-     - `.Produces<CreateTripCommandResponse>(201)` + `.ProducesProblem(400)` + `.ProducesProblem(401)` + `.ProducesProblem(404)`.
-   - Ustawianie `X-Correlation-Id` analogicznie do `AuthEndpoints` i `TagsEndpoints`.
-   - Dodaj `app.MapTripsEndpoints();` w `VibeTravelers.API/Program.cs`.
+    - Dodaj `VibeTravelers.API/Endpoints/TripsEndpoints.cs`:
+      - `var group = app.MapGroup("/trips").WithTags("Trips");`
+      - `group.MapPost("/", CreateTrip).AllowAnonymous();` -> na razie pomin autoryzacje
+      - `.Produces<CreateTripCommandResponse>(201)` + `.ProducesProblem(400)` + `.ProducesProblem(401)` + `.ProducesProblem(404)`.
+    - Ustawianie `X-Correlation-Id` analogicznie do `AuthEndpoints` i `TagsEndpoints`.
+    - Dodaj `app.MapTripsEndpoints();` w `VibeTravelers.API/Program.cs`.
 8. **Testy**
    - Integracyjne:
      - `POST /trips` bez JWT → `401`,
@@ -173,4 +178,3 @@ Mapowanie do `ProblemDetails` realizuje `ExceptionHandlingMiddleware`. Brak dedy
      - z tagami: poprawne sortowanie po `order`, `404 TAG_NOT_FOUND` dla brakujących tagów,
      - `400` dla `dateTo < dateFrom`, `peopleCount <= 0`, brak `title/placeText`,
      - enumy jako string (camelCase) i obecność `X-Correlation-Id`.
-

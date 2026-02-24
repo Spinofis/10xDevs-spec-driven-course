@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using VibeTravels.Application;
 using VibeTravels.Infrastructure;
 using VibeTravelers.API.Endpoints;
@@ -13,6 +15,10 @@ namespace VibeTravelers.API
 
             builder.Services.AddApplication();
             builder.Services.AddInfrastructure(builder.Configuration);
+            builder.Services.ConfigureHttpJsonOptions(options =>
+            {
+                options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            });
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -32,6 +38,7 @@ namespace VibeTravelers.API
 
             app.MapAuthEndpoints();
             app.MapTagsEndpoints();
+            app.MapTripsEndpoints();
 
             app.Run();
         }

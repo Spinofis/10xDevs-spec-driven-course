@@ -18,6 +18,13 @@ public static class ResultErrors
             Status: HttpStatusCode.BadRequest,
             Target: target);
 
+    public static Error TagNotFound(string? target = null)
+        => new(
+            Code: "TAG_NOT_FOUND",
+            Message: "One or more tags were not found.",
+            Status: HttpStatusCode.NotFound,
+            Target: target);
+
     public static Error Unknown(string? message = null, string? target = null)
         => new(
             Code: "UNKNOWN_ERROR",
@@ -25,4 +32,3 @@ public static class ResultErrors
             Status: HttpStatusCode.InternalServerError,
             Target: target);
 }
-

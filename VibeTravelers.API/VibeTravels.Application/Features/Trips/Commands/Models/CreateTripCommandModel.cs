@@ -4,7 +4,7 @@ namespace VibeTravels.Application.Features.Trips.Commands.Models;
 
 public sealed record CreateTripCommandModel(
     string Title,
-    string PlaceText,
+    string? PlaceText,
     string? NoteText,
     DateOnly? DateFrom,
     DateOnly? DateTo,

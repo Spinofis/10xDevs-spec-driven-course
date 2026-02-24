@@ -3,6 +3,7 @@ using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Tags.Handlers;
 using VibeTravels.Application.Features.Tags.Queries;
 using VibeTravels.Domain.Entities.Tags;
+using VibeTravels.Domain.Entities.Trips;
 using VibeTravels.Domain.Entities.Users;
 using VibeTravels.Domain.ValueObjects;
 
@@ -77,6 +78,8 @@ public sealed class ListTagsQueryHandlerTests
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Tag> Tags => Set<Tag>();
+        public DbSet<Trip> Trips => Set<Trip>();
+        public DbSet<TripTag> TripTags => Set<TripTag>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -89,6 +92,22 @@ public sealed class ListTagsQueryHandlerTests
                 builder.Property(e => e.PasswordHash).HasConversion(
                     password => password.Value,
                     value => Password.From(value));
+            });
+
+            modelBuilder.Entity<Trip>(builder =>
+            {
+                builder.Property(e => e.Title).HasConversion(
+                    title => title.Value,
+                    value => TripTitle.From(value));
+
+                builder.Property(e => e.PlaceText).HasConversion(
+                    place => place == null ? null : place.Value,
+                    value => string.IsNullOrWhiteSpace(value) ? null : TripPlaceText.From(value));
+            });
+
+            modelBuilder.Entity<TripTag>(builder =>
+            {
+                builder.HasKey(e => new { e.TripId, e.TagId });
             });
 
             base.OnModelCreating(modelBuilder);
