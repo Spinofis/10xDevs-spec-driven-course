@@ -33,5 +33,14 @@ public sealed class TripTag
             CreatedAt = DateTimeOffset.UtcNow
         });
     }
-}
 
+    public bool UpdateOrder(int? order)
+    {
+        var normalizedOrder = order ?? 0;
+        if (Order == normalizedOrder)
+            return false;
+
+        Order = normalizedOrder;
+        return true;
+    }
+}

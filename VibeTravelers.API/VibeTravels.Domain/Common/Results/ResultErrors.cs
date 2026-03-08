@@ -25,6 +25,13 @@ public static class ResultErrors
             Status: HttpStatusCode.NotFound,
             Target: target);
 
+    public static Error TripNotFound(string? target = null)
+        => new(
+            Code: "TRIP_NOT_FOUND",
+            Message: "Trip was not found.",
+            Status: HttpStatusCode.NotFound,
+            Target: target);
+
     public static Error Unknown(string? message = null, string? target = null)
         => new(
             Code: "UNKNOWN_ERROR",
