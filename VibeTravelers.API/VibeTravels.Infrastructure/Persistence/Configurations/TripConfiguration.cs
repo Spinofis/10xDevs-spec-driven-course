@@ -20,20 +20,19 @@ public sealed class TripConfiguration : IEntityTypeConfiguration<Trip>
             .HasColumnName("user_id")
             .IsRequired();
 
-        builder.Property(t => t.Title)
+        builder.Ignore(t => t.Title);
+        builder.Ignore(t => t.PlaceText);
+
+        builder.Property<string>("_title")
             .HasColumnName("title")
             .HasMaxLength(TripTitle.MaxLength)
-            .HasConversion(
-                value => value.Value,
-                value => TripTitle.From(value))
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
             .IsRequired();
 
-        builder.Property(t => t.PlaceText)
+        builder.Property<string?>("_placeText")
             .HasColumnName("place_text")
             .HasMaxLength(TripPlaceText.MaxLength)
-            .HasConversion(
-                value => value == null ? null : value.Value,
-                value => string.IsNullOrWhiteSpace(value) ? null : TripPlaceText.From(value));
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.Property(t => t.NoteText)
             .HasColumnName("notes")

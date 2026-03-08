@@ -6,11 +6,22 @@ namespace VibeTravels.Domain.Entities.Trips;
 public sealed class Trip
 {
     public const int NoteTextMaxLength = 2000;
+    private string _title = null!;
+    private string? _placeText;
 
     public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
-    public TripTitle Title { get; private set; } = null!;
-    public TripPlaceText? PlaceText { get; private set; }
+    public TripTitle Title
+    {
+        get => TripTitle.From(_title);
+        private set => _title = value.Value;
+    }
+
+    public TripPlaceText? PlaceText
+    {
+        get => _placeText is null ? null : TripPlaceText.From(_placeText);
+        private set => _placeText = value?.Value;
+    }
     public string? NoteText { get; private set; }
     public DateOnly? DateFrom { get; private set; }
     public DateOnly? DateTo { get; private set; }
