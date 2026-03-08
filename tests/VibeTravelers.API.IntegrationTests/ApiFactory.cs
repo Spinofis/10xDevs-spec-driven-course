@@ -10,13 +10,20 @@ namespace VibeTravelers.API.IntegrationTests;
 
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
+    private readonly string _connectionString;
+
+    public ApiFactory(string connectionString)
+    {
+        _connectionString = connectionString;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, config) =>
         {
             var settings = new Dictionary<string, string?>
             {
-                ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test;Username=test;Password=test"
+                ["ConnectionStrings:DefaultConnection"] = _connectionString
             };
 
             config.AddInMemoryCollection(settings);
@@ -41,7 +48,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             }
 
             services.AddDbContext<AppDbContext>(options =>
-                options.UseInMemoryDatabase("tags-integration-tests"));
+                options.UseNpgsql(_connectionString));
             services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         });
     }
