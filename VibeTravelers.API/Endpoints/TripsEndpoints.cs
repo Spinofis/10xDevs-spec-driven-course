@@ -36,6 +36,14 @@ public static class TripsEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .AllowAnonymous();
+
+        group.MapDelete("/{tripId:guid}", DeleteTrip)
+            .WithName("DeleteTrip")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .AllowAnonymous();
     }
 
     private static async Task<IResult> ListTrips(
@@ -104,5 +112,21 @@ public static class TripsEndpoints
             cancellationToken);
 
         return result.ToHttpResult(httpContext, onSuccess: payload => Results.Ok(payload));
+    }
+
+    private static async Task<IResult> DeleteTrip(
+        Guid tripId,
+        [FromServices] IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var correlationId = httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? Guid.NewGuid().ToString();
+        httpContext.Response.Headers["X-Correlation-Id"] = correlationId;
+
+        var request = new DeleteTripCommandRequest(tripId);
+        var result = await mediator.Send(new DeleteTripCommand(DevelopmentUserId, request), cancellationToken);
+
+        return result.ToHttpResult(httpContext, onSuccess: Results.NoContent);
     }
 }

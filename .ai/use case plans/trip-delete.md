@@ -1,5 +1,8 @@
 # API Endpoint Implementation Plan: DELETE /trips/{tripId}
 
+WAZNE!!!
+Na tym etapie pomin autoryzacje!
+
 ## 1. Przeglad punktu koncowego
 Endpoint sluzy do miekkiego usuniecia wycieczki uzytkownika przez ustawienie znacznika usuniecia zamiast fizycznego kasowania rekordu. Operacja dotyczy tylko zasobu nalezacego do aktualnie zalogowanego uzytkownika i po sukcesie zwraca `204 No Content`.
 

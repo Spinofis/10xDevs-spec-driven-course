@@ -32,6 +32,7 @@ public sealed class Trip
     public string? Pace { get; private set; }
     public DateTimeOffset? GeneratedAt { get; private set; }
     public bool HasGeneratedPlan { get; private set; }
+    public DateTimeOffset? DeletedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
 
@@ -94,6 +95,7 @@ public sealed class Trip
             Pace = state.Pace,
             GeneratedAt = null,
             HasGeneratedPlan = false,
+            DeletedAt = null,
             CreatedAt = now,
             UpdatedAt = now
         });
@@ -140,6 +142,16 @@ public sealed class Trip
     public void TouchUpdatedAt()
     {
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public Result SoftDelete(DateTimeOffset now)
+    {
+        if (DeletedAt is not null)
+            return Result.Fail(ResultErrors.TripNotFound(nameof(Id)));
+
+        DeletedAt = now;
+        UpdatedAt = now;
+        return Result.Ok();
     }
 
     private bool ApplyState(NormalizedTripState state)

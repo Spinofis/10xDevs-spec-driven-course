@@ -24,7 +24,7 @@ public sealed class PatchTripCommandHandler : IRequestHandler<PatchTripCommand, 
         var trip = await _db.Trips
             .Include(t => t.TripTags)
             .SingleOrDefaultAsync(
-                t => t.Id == request.TripId && t.UserId == request.UserId,
+                t => t.Id == request.TripId && t.UserId == request.UserId && t.DeletedAt == null,
                 cancellationToken);
 
         if (trip is null)

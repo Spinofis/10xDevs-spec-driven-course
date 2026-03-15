@@ -68,6 +68,9 @@ public sealed class TripConfiguration : IEntityTypeConfiguration<Trip>
             .HasColumnName("has_generated_plan")
             .IsRequired();
 
+        builder.Property(t => t.DeletedAt)
+            .HasColumnName("deleted_at");
+
         builder.Property(t => t.CreatedAt)
             .HasColumnName("created_at")
             .IsRequired();

@@ -15,6 +15,8 @@ Istotna niespojnosc specyfikacji, ktora trzeba rozstrzygnac w kodzie:
 - rekomendacja wdrozeniowa dla MVP: uznac, ze do kolejkowania obie wartosci musza byc obecne i kazda musi miescic sie w `[2..21]`, a dodatkowo `StayLengthMaxDays >= StayLengthMinDays`;
 - to pozwala pozostac zgodnym z obecnym modelem domenowym bez wprowadzania ukrytych heurystyk na etapie queue.
 
+Komentarz architekta: tak oba StayLengthMinDays, StayLengthMaxDays mają być uwzględnione
+
 ## 2. Szczegoly zadania
 - Metoda HTTP: `POST`
 - Struktura URL: `/trips/{tripId}/generation-jobs`

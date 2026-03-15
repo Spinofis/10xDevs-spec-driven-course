@@ -33,6 +33,9 @@ public sealed class ListTripsQueryHandler : IRequestHandler<ListTripsQuery, Resu
             .AsNoTracking()
             .Where(t => t.UserId == request.UserId);
 
+        if (request.Request.IncludeDeleted is not true)
+            queryable = queryable.Where(t => t.DeletedAt == null);
+
         if (string.IsNullOrWhiteSpace(request.Request.Query) is false)
         {
             var queryText = request.Request.Query.Trim();
