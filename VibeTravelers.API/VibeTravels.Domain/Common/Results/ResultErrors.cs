@@ -46,6 +46,13 @@ public static class ResultErrors
             Status: HttpStatusCode.Conflict,
             Target: target);
 
+    public static Error JobNotFound(string? target = null)
+        => new(
+            Code: "JOB_NOT_FOUND",
+            Message: "Generation job was not found.",
+            Status: HttpStatusCode.NotFound,
+            Target: target);
+
     public static Error Unknown(string? message = null, string? target = null)
         => new(
             Code: "UNKNOWN_ERROR",

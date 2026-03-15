@@ -161,6 +161,7 @@ public sealed class QueueGenerationJobTests
     {
         var jobResult = AiGenerationJob.CreatePending(
             tripId,
+            TripsEndpoints.DevelopmentUserId,
             """{"tripId":"123"}""",
             "hash",
             DateTimeOffset.UtcNow);

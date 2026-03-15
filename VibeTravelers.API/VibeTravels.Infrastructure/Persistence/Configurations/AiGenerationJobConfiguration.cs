@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Trips;
+using VibeTravels.Domain.Entities.Users;
 
 namespace VibeTravels.Infrastructure.Persistence.Configurations;
 
@@ -18,6 +19,10 @@ public sealed class AiGenerationJobConfiguration : IEntityTypeConfiguration<AiGe
 
         builder.Property(x => x.TripId)
             .HasColumnName("trip_id")
+            .IsRequired();
+
+        builder.Property(x => x.UserId)
+            .HasColumnName("user_id")
             .IsRequired();
 
         builder.Property(x => x.Status)
@@ -41,8 +46,24 @@ public sealed class AiGenerationJobConfiguration : IEntityTypeConfiguration<AiGe
         builder.Property(x => x.CanceledAt)
             .HasColumnName("canceled_at");
 
+        builder.Property(x => x.AttemptNo)
+            .HasColumnName("attempt_no")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(x => x.ErrorCode)
+            .HasColumnName("error_code");
+
         builder.Property(x => x.ErrorMessage)
             .HasColumnName("error_message");
+
+        builder.Property(x => x.Discarded)
+            .HasColumnName("discarded")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(x => x.DiscardReason)
+            .HasColumnName("discard_reason");
 
         builder.Property(x => x.InputSnapshot)
             .HasColumnName("input_snapshot")
@@ -56,6 +77,11 @@ public sealed class AiGenerationJobConfiguration : IEntityTypeConfiguration<AiGe
         builder.HasOne<Trip>()
             .WithMany()
             .HasForeignKey(x => x.TripId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => new { x.TripId, x.RequestedAt })

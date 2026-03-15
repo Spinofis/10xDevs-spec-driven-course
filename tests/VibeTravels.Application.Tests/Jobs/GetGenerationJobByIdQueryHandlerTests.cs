@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
-using VibeTravels.Application.Features.Jobs.Commands;
 using VibeTravels.Application.Features.Jobs.Handlers;
+using VibeTravels.Application.Features.Jobs.Queries;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Trips;
@@ -10,120 +10,112 @@ using VibeTravels.Domain.ValueObjects;
 
 namespace VibeTravels.Application.Tests.Jobs;
 
-public sealed class QueueGenerationJobCommandHandlerTests
+public sealed class GetGenerationJobByIdQueryHandlerTests
 {
     private static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid OtherUserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     [Fact]
-    public async Task Handle_QueuesJobAndSnapshot_WhenTripIsReady()
+    public async Task Handle_ReturnsJob_WhenOwnedByUser()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
 
-        var trip = CreateTrip(UserId, stayMin: 2, stayMax: 5);
-        db.Trips.Add(trip);
+        var job = CreatePendingJob(UserId, Guid.NewGuid());
+        SetProperty(job, nameof(AiGenerationJob.AttemptNo), 2);
+        SetProperty(job, nameof(AiGenerationJob.ErrorCode), "AI_TIMEOUT");
+        SetProperty(job, nameof(AiGenerationJob.ErrorMessage), "Timed out");
+        SetProperty(job, nameof(AiGenerationJob.Discarded), true);
+        SetProperty(job, nameof(AiGenerationJob.DiscardReason), "Superseded");
+
+        db.AiGenerationJobs.Add(job);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
-
+        var handler = new GetGenerationJobByIdQueryHandler(db);
         var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(job.Id)),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-        Assert.Equal("queued", result.Value!.Job.Status.ToString().ToLowerInvariant());
-
-        Assert.Equal(1, await db.AiGenerationJobs.CountAsync());
+        Assert.Equal(job.Id, result.Value!.Job.Id);
+        Assert.Equal("queued", result.Value.Job.Status.ToString().ToLowerInvariant());
+        Assert.Equal(2, result.Value.Job.AttemptNo);
+        Assert.Equal("AI_TIMEOUT", result.Value.Job.ErrorCode);
+        Assert.Equal("Timed out", result.Value.Job.ErrorMessage);
+        Assert.True(result.Value.Job.Discarded);
+        Assert.Equal("Superseded", result.Value.Job.DiscardReason);
     }
 
     [Fact]
-    public async Task Handle_ReturnsTripNotFound_WhenTripBelongsToDifferentUser()
+    public async Task Handle_ReturnsJobNotFound_WhenJobDoesNotExist()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
-        db.Users.Add(CreateUser(Guid.Parse("22222222-2222-2222-2222-222222222222")));
-
-        var trip = CreateTrip(Guid.Parse("22222222-2222-2222-2222-222222222222"), stayMin: 2, stayMax: 5);
-        db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
+        var handler = new GetGenerationJobByIdQueryHandler(db);
         var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(Guid.NewGuid())),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("TRIP_NOT_FOUND", result.Errors[0].Code);
+        Assert.Equal("JOB_NOT_FOUND", result.Errors[0].Code);
     }
 
     [Fact]
-    public async Task Handle_ReturnsGenerationRequirementsNotMet_WhenStayLengthIsOutOfRange()
+    public async Task Handle_ReturnsJobNotFound_WhenJobBelongsToDifferentUser()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
+        db.Users.Add(CreateUser(OtherUserId));
 
-        var trip = CreateTrip(UserId, stayMin: 1, stayMax: 1);
-        db.Trips.Add(trip);
+        var job = CreatePendingJob(OtherUserId, Guid.NewGuid());
+        db.AiGenerationJobs.Add(job);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
+        var handler = new GetGenerationJobByIdQueryHandler(db);
         var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(job.Id)),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("GENERATION_REQUIREMENTS_NOT_MET", result.Errors[0].Code);
+        Assert.Equal("JOB_NOT_FOUND", result.Errors[0].Code);
     }
 
     [Fact]
-    public async Task Handle_ReturnsJobAlreadyActive_WhenQueuedJobExists()
+    public async Task Handle_MapsRunningStatusToProcessing()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
 
-        var trip = CreateTrip(UserId, stayMin: 2, stayMax: 5);
-        db.Trips.Add(trip);
+        var job = CreatePendingJob(UserId, Guid.NewGuid());
+        SetProperty(job, nameof(AiGenerationJob.Status), AiGenerationJobStatus.Running);
+        db.AiGenerationJobs.Add(job);
+        await db.SaveChangesAsync();
 
-        var existingJobResult = AiGenerationJob.CreatePending(
-            trip.Id,
-            UserId,
+        var handler = new GetGenerationJobByIdQueryHandler(db);
+        var result = await handler.Handle(
+            new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(job.Id)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal("processing", result.Value!.Job.Status.ToString().ToLowerInvariant());
+    }
+
+    private static AiGenerationJob CreatePendingJob(Guid userId, Guid tripId)
+    {
+        var result = AiGenerationJob.CreatePending(
+            tripId,
+            userId,
             """{"tripId":"123"}""",
             "hash",
             DateTimeOffset.UtcNow);
-        Assert.True(existingJobResult.IsSuccess);
 
-        db.AiGenerationJobs.Add(existingJobResult.Value!);
-        await db.SaveChangesAsync();
-
-        var handler = new QueueGenerationJobCommandHandler(db);
-        var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal("JOB_ALREADY_ACTIVE", result.Errors[0].Code);
-    }
-
-    private static Trip CreateTrip(Guid userId, int stayMin, int stayMax)
-    {
-        var createResult = Trip.Create(
-            userId,
-            title: "Trip",
-            placeText: "Rome",
-            noteText: null,
-            dateFrom: new DateOnly(2026, 5, 1),
-            dateTo: new DateOnly(2026, 5, 3),
-            stayLengthMinDays: stayMin,
-            stayLengthMaxDays: stayMax,
-            peopleCount: 2,
-            budgetLevel: "Medium",
-            pace: "Normal",
-            hasAnyTags: false);
-
-        Assert.True(createResult.IsSuccess);
-        Assert.NotNull(createResult.Value);
-        return createResult.Value!;
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        return result.Value!;
     }
 
     private static User CreateUser(Guid id)
@@ -133,8 +125,13 @@ public sealed class QueueGenerationJobCommandHandlerTests
         Assert.NotNull(result.Value);
 
         var user = result.Value!;
-        typeof(User).GetProperty(nameof(User.Id))!.SetValue(user, id);
+        SetProperty(user, nameof(User.Id), id);
         return user;
+    }
+
+    private static void SetProperty<T>(T target, string propertyName, object? value)
+    {
+        typeof(T).GetProperty(propertyName)!.SetValue(target, value);
     }
 
     private static TestAppDbContext CreateDbContext()

@@ -8,6 +8,7 @@ using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Common;
 using VibeTravels.Application.Features.Jobs.Commands;
 using VibeTravels.Application.Features.Jobs.Queries.Models;
+using VibeTravels.Application.Features.Jobs.Services;
 using VibeTravels.Domain.Common.Results;
 using VibeTravels.Domain.Entities.Jobs;
 
@@ -17,10 +18,14 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IAppDbContext _db;
+    private readonly IGenerationJobStatusMapper _generationJobStatusMapper;
 
-    public QueueGenerationJobCommandHandler(IAppDbContext db)
+    public QueueGenerationJobCommandHandler(
+        IAppDbContext db,
+        IGenerationJobStatusMapper generationJobStatusMapper)
     {
         _db = db;
+        _generationJobStatusMapper = generationJobStatusMapper;
     }
 
     public async Task<Result<QueueGenerationJobCommandResponse>> Handle(
@@ -63,6 +68,7 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
 
         var jobResult = AiGenerationJob.CreatePending(
             trip.Id,
+            request.UserId,
             payloadJson,
             inputHash,
             now);
@@ -85,24 +91,11 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
             new QueuedGenerationJobQueryModel(
                 jobResult.Value.Id,
                 jobResult.Value.TripId,
-                MapStatus(jobResult.Value.Status),
+                _generationJobStatusMapper.Map(jobResult.Value.Status),
                 jobResult.Value.RequestedAt,
                 0));
 
         return Result<QueueGenerationJobCommandResponse>.Ok(response);
-    }
-
-    private static GenerationJobStatus MapStatus(AiGenerationJobStatus status)
-    {
-        return status switch
-        {
-            AiGenerationJobStatus.Pending => GenerationJobStatus.Queued,
-            AiGenerationJobStatus.Running => GenerationJobStatus.Processing,
-            AiGenerationJobStatus.Succeeded => GenerationJobStatus.Succeeded,
-            AiGenerationJobStatus.Failed => GenerationJobStatus.Failed,
-            AiGenerationJobStatus.Canceled => GenerationJobStatus.Canceled,
-            _ => GenerationJobStatus.Failed
-        };
     }
 
     private static bool IsOneActiveJobViolation(DbUpdateException exception)
