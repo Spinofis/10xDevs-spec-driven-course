@@ -144,6 +144,59 @@ public sealed class Trip
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public Result ValidateCurrentState(bool hasAnyTags, bool requireCompleteTripData)
+    {
+        var stateResult = NormalizeAndValidateState(
+            _title,
+            _placeText,
+            NoteText,
+            DateFrom,
+            DateTo,
+            StayLengthMinDays,
+            StayLengthMaxDays,
+            PeopleCount,
+            BudgetLevel,
+            Pace,
+            hasAnyTags,
+            requireCompleteTripData);
+
+        return stateResult.IsSuccess
+            ? Result.Ok()
+            : Result.Fail(stateResult.Errors);
+    }
+
+    public Result ValidateForGenerationQueue(bool hasAtLeastTwoTags)
+    {
+        var stateResult = NormalizeAndValidateState(
+            _title,
+            _placeText,
+            NoteText,
+            DateFrom,
+            DateTo,
+            StayLengthMinDays,
+            StayLengthMaxDays,
+            PeopleCount,
+            BudgetLevel,
+            Pace,
+            hasAtLeastTwoTags,
+            requireCompleteTripData: true);
+
+        if (stateResult.IsSuccess is false)
+            return Result.Fail(stateResult.Errors);
+
+        var errors = new List<Error>();
+
+        if (StayLengthMinDays is < 2 or > 21)
+            errors.Add(ResultErrors.Validation("StayLengthMinDays must be in range [2..21].", nameof(StayLengthMinDays)));
+
+        if (StayLengthMaxDays is < 2 or > 21)
+            errors.Add(ResultErrors.Validation("StayLengthMaxDays must be in range [2..21].", nameof(StayLengthMaxDays)));
+
+        return errors.Count == 0
+            ? Result.Ok()
+            : Result.Fail(errors);
+    }
+
     public Result SoftDelete(DateTimeOffset now)
     {
         if (DeletedAt is not null)

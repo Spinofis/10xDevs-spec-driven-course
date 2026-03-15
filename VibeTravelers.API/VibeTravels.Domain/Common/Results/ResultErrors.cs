@@ -32,6 +32,20 @@ public static class ResultErrors
             Status: HttpStatusCode.NotFound,
             Target: target);
 
+    public static Error GenerationRequirementsNotMet(string message, string? target = null)
+        => new(
+            Code: "GENERATION_REQUIREMENTS_NOT_MET",
+            Message: message,
+            Status: HttpStatusCode.BadRequest,
+            Target: target);
+
+    public static Error JobAlreadyActive(string? target = null)
+        => new(
+            Code: "JOB_ALREADY_ACTIVE",
+            Message: "A generation job is already active for this trip.",
+            Status: HttpStatusCode.Conflict,
+            Target: target);
+
     public static Error Unknown(string? message = null, string? target = null)
         => new(
             Code: "UNKNOWN_ERROR",

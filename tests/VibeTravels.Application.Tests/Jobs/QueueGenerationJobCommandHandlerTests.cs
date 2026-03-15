@@ -1,38 +1,40 @@
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
-using VibeTravels.Application.Features.Trips.Commands;
-using VibeTravels.Application.Features.Trips.Handlers;
+using VibeTravels.Application.Features.Jobs.Commands;
+using VibeTravels.Application.Features.Jobs.Handlers;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Trips;
 using VibeTravels.Domain.Entities.Users;
 using VibeTravels.Domain.ValueObjects;
 
-namespace VibeTravels.Application.Tests.Trips;
+namespace VibeTravels.Application.Tests.Jobs;
 
-public sealed class DeleteTripCommandHandlerTests
+public sealed class QueueGenerationJobCommandHandlerTests
 {
     private static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
     [Fact]
-    public async Task Handle_SoftDeletesTrip_WhenTripExistsForUser()
+    public async Task Handle_QueuesJobAndSnapshot_WhenTripIsReady()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
 
-        var trip = CreateTrip(UserId);
+        var trip = CreateTrip(UserId, stayMin: 2, stayMax: 5);
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new DeleteTripCommandHandler(db);
-        var command = new DeleteTripCommand(UserId, new DeleteTripCommandRequest(trip.Id));
+        var handler = new QueueGenerationJobCommandHandler(db);
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        var result = await handler.Handle(
+            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            CancellationToken.None);
 
         Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal("queued", result.Value!.Job.Status.ToString().ToLowerInvariant());
 
-        var saved = await db.Trips.SingleAsync(x => x.Id == trip.Id);
-        Assert.NotNull(saved.DeletedAt);
+        Assert.Equal(1, await db.AiGenerationJobs.CountAsync());
     }
 
     [Fact]
@@ -42,42 +44,67 @@ public sealed class DeleteTripCommandHandlerTests
         db.Users.Add(CreateUser(UserId));
         db.Users.Add(CreateUser(Guid.Parse("22222222-2222-2222-2222-222222222222")));
 
-        var trip = CreateTrip(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        var trip = CreateTrip(Guid.Parse("22222222-2222-2222-2222-222222222222"), stayMin: 2, stayMax: 5);
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new DeleteTripCommandHandler(db);
-        var command = new DeleteTripCommand(UserId, new DeleteTripCommandRequest(trip.Id));
-
-        var result = await handler.Handle(command, CancellationToken.None);
+        var handler = new QueueGenerationJobCommandHandler(db);
+        var result = await handler.Handle(
+            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("TRIP_NOT_FOUND", result.Errors[0].Code);
     }
 
     [Fact]
-    public async Task Handle_ReturnsTripNotFound_WhenTripAlreadyDeleted()
+    public async Task Handle_ReturnsGenerationRequirementsNotMet_WhenStayLengthIsOutOfRange()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
 
-        var trip = CreateTrip(UserId);
-        var deleteResult = trip.SoftDelete(DateTimeOffset.UtcNow);
-        Assert.True(deleteResult.IsSuccess);
-
+        var trip = CreateTrip(UserId, stayMin: 1, stayMax: 1);
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new DeleteTripCommandHandler(db);
-        var command = new DeleteTripCommand(UserId, new DeleteTripCommandRequest(trip.Id));
-
-        var result = await handler.Handle(command, CancellationToken.None);
+        var handler = new QueueGenerationJobCommandHandler(db);
+        var result = await handler.Handle(
+            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("TRIP_NOT_FOUND", result.Errors[0].Code);
+        Assert.Equal("GENERATION_REQUIREMENTS_NOT_MET", result.Errors[0].Code);
     }
 
-    private static Trip CreateTrip(Guid userId)
+    [Fact]
+    public async Task Handle_ReturnsJobAlreadyActive_WhenQueuedJobExists()
+    {
+        await using var db = CreateDbContext();
+        db.Users.Add(CreateUser(UserId));
+
+        var trip = CreateTrip(UserId, stayMin: 2, stayMax: 5);
+        db.Trips.Add(trip);
+
+        var existingJobResult = AiGenerationJob.CreatePending(
+            trip.Id,
+            """{"tripId":"123"}""",
+            "hash",
+            DateTimeOffset.UtcNow);
+        Assert.True(existingJobResult.IsSuccess);
+
+        db.AiGenerationJobs.Add(existingJobResult.Value!);
+        await db.SaveChangesAsync();
+
+        var handler = new QueueGenerationJobCommandHandler(db);
+        var result = await handler.Handle(
+            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("JOB_ALREADY_ACTIVE", result.Errors[0].Code);
+    }
+
+    private static Trip CreateTrip(Guid userId, int stayMin, int stayMax)
     {
         var createResult = Trip.Create(
             userId,
@@ -86,8 +113,8 @@ public sealed class DeleteTripCommandHandlerTests
             noteText: null,
             dateFrom: new DateOnly(2026, 5, 1),
             dateTo: new DateOnly(2026, 5, 3),
-            stayLengthMinDays: 2,
-            stayLengthMaxDays: 3,
+            stayLengthMinDays: stayMin,
+            stayLengthMaxDays: stayMax,
             peopleCount: 2,
             budgetLevel: "Medium",
             pace: "Normal",
