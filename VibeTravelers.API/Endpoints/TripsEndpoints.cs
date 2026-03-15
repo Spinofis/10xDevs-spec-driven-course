@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using VibeTravels.Application.Features.Jobs.Commands;
+using VibeTravels.Application.Features.Jobs.Queries;
 using VibeTravels.Application.Features.Trips.Commands;
 using VibeTravels.Application.Features.Trips.Queries;
 using VibeTravelers.API;
@@ -53,6 +54,14 @@ public static class TripsEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .AllowAnonymous();
+
+        group.MapGet("/{tripId:guid}/generation-jobs", ListTripGenerationJobs)
+            .WithName("ListTripGenerationJobs")
+            .Produces<ListTripGenerationJobsQueryResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .AllowAnonymous();
     }
 
@@ -156,5 +165,29 @@ public static class TripsEndpoints
         return result.ToHttpResult(
             httpContext,
             onSuccess: payload => Results.Json(payload, statusCode: StatusCodes.Status202Accepted));
+    }
+
+    private static async Task<IResult> ListTripGenerationJobs(
+        Guid tripId,
+        [FromQuery(Name = "limit")] int? limit,
+        [FromQuery(Name = "cursor")] string? cursor,
+        [FromServices] IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var correlationId = httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? Guid.NewGuid().ToString();
+        httpContext.Response.Headers["X-Correlation-Id"] = correlationId;
+
+        var request = new ListTripGenerationJobsQueryRequest(
+            TripId: tripId,
+            Limit: limit,
+            Cursor: cursor);
+
+        var result = await mediator.Send(
+            new ListTripGenerationJobsQuery(DevelopmentUserId, request),
+            cancellationToken);
+
+        return result.ToHttpResult(httpContext, onSuccess: payload => Results.Ok(payload));
     }
 }

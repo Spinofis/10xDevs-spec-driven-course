@@ -257,3 +257,8 @@ Nie ma potrzeby dodawania wpisow do `audit_event` ani osobnej tabeli bledow dla 
      - zostawiamy statusy domenowe i tylko mapujemy je do kontraktu API
      - czy migrujemy persistence do nazewnictwa zgodnego ze spec
    - plan implementacji endpointu powinien przyjac jedna, spojna strategia i stosowac ja w calym feature `Jobs`
+
+
+Komentarze architekta (nadpisują to co było napisane wyżej):
+- nie robimy na razie autoryzacji
+- sortowanie tylko po dacie od najnowszych i nie przyjmujemy sortowania jako parametr

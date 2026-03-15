@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Jobs.Handlers;
 using VibeTravels.Application.Features.Jobs.Queries;
+using VibeTravels.Application.Features.Jobs.Services;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Trips;
@@ -31,7 +32,7 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
         db.AiGenerationJobs.Add(job);
         await db.SaveChangesAsync();
 
-        var handler = new GetGenerationJobByIdQueryHandler(db);
+        var handler = new GetGenerationJobByIdQueryHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(job.Id)),
             CancellationToken.None);
@@ -54,7 +55,7 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
         db.Users.Add(CreateUser(UserId));
         await db.SaveChangesAsync();
 
-        var handler = new GetGenerationJobByIdQueryHandler(db);
+        var handler = new GetGenerationJobByIdQueryHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(Guid.NewGuid())),
             CancellationToken.None);
@@ -74,7 +75,7 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
         db.AiGenerationJobs.Add(job);
         await db.SaveChangesAsync();
 
-        var handler = new GetGenerationJobByIdQueryHandler(db);
+        var handler = new GetGenerationJobByIdQueryHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(job.Id)),
             CancellationToken.None);
@@ -94,7 +95,7 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
         db.AiGenerationJobs.Add(job);
         await db.SaveChangesAsync();
 
-        var handler = new GetGenerationJobByIdQueryHandler(db);
+        var handler = new GetGenerationJobByIdQueryHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new GetGenerationJobByIdQuery(UserId, new GetGenerationJobByIdQueryRequest(job.Id)),
             CancellationToken.None);

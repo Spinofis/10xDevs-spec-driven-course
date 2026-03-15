@@ -329,3 +329,8 @@ Rekomendowane metryki:
    - unit: prompt builder, parser, retry classification, status transitions;
    - application/integration: claimowanie jobow, recovery `Running`, `newer job exists`, retry transientne;
    - end-to-end: queue endpoint zapisuje job, worker generuje plan, status endpoint pokazuje kolejne stany.
+
+
+Komentarze architekta (nadpisują to co wyżej):
+- odnośnie trip_input_snapshot to jest niepotrzebne ,  tabela generation_jobs ma kolumne input_snapshot
+a encja w domenie AiGenerationJob ma kolumne AiGenerationJob

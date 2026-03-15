@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Jobs.Commands;
 using VibeTravels.Application.Features.Jobs.Handlers;
+using VibeTravels.Application.Features.Jobs.Services;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Trips;
@@ -24,7 +25,7 @@ public sealed class QueueGenerationJobCommandHandlerTests
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
+        var handler = new QueueGenerationJobCommandHandler(db, new GenerationJobStatusMapper());
 
         var result = await handler.Handle(
             new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
@@ -48,7 +49,7 @@ public sealed class QueueGenerationJobCommandHandlerTests
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
+        var handler = new QueueGenerationJobCommandHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
             CancellationToken.None);
@@ -67,7 +68,7 @@ public sealed class QueueGenerationJobCommandHandlerTests
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
+        var handler = new QueueGenerationJobCommandHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
             CancellationToken.None);
@@ -96,7 +97,7 @@ public sealed class QueueGenerationJobCommandHandlerTests
         db.AiGenerationJobs.Add(existingJobResult.Value!);
         await db.SaveChangesAsync();
 
-        var handler = new QueueGenerationJobCommandHandler(db);
+        var handler = new QueueGenerationJobCommandHandler(db, new GenerationJobStatusMapper());
         var result = await handler.Handle(
             new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
             CancellationToken.None);
