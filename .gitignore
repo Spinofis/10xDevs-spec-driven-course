@@ -64,3 +64,4 @@
 /VibeTravelers.API/VibeTravels.Domain/bin/Release/net8.0
 /VibeTravelers.API/VibeTravels.Infrastructure/bin/Release/net8.0
 /.vs
+/VibeTravelers.API/VibeTravels.Worker/obj
