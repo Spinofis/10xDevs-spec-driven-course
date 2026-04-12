@@ -13,6 +13,11 @@ public sealed class AiGenerationJobConfiguration : IEntityTypeConfiguration<AiGe
         builder.ToTable("generation_jobs");
 
         builder.HasKey(x => x.Id);
+        builder.Property<uint>("xmin")
+            .HasColumnName("xmin")
+            .HasColumnType("xid")
+            .IsConcurrencyToken()
+            .ValueGeneratedOnAddOrUpdate();
 
         builder.Property(x => x.Id)
             .HasColumnName("id");
@@ -69,6 +74,10 @@ public sealed class AiGenerationJobConfiguration : IEntityTypeConfiguration<AiGe
             .HasColumnName("input_snapshot")
             .HasColumnType("jsonb")
             .IsRequired();
+
+        builder.Property(x => x.ResponsePayload)
+            .HasColumnName("response_payload")
+            .HasColumnType("jsonb");
 
         builder.Property(x => x.InputHash)
             .HasColumnName("input_hash")

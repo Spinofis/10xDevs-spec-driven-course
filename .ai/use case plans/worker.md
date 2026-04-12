@@ -13,15 +13,19 @@ Najwazniejsze zalozenia dla MVP:
 Istotne luki w aktualnym repo, ktore plan musi domknac:
 - brak projektu workerowego w solution;
 - brak abstrakcji `IOpenAiClient` i brak implementacji integracji z OpenAI;
-- brak encji persistence dla finalnego planu (`trip_plan` / `trip_plan_item` albo innego zaakceptowanego modelu planu);
-- brak tabeli `trip_input_snapshot`, mimo ze plan queue endpointu juz do niej nawiazuje;
+- w bazie danych istnieja tabele trip_plans i plan_items, natomiast trzeba to odwzorowac w EF
+- nie potrzebujemy `trip_input_snapshot`, snapshot jest w klasie c# AiGenerationJob i tabeli generation_jobs, kolumna/pole InputSnapshot
 - `AiGenerationJob` ma dzis pola read-modelowe, ale nie ma jeszcze pelnego modelu zapisu odpowiedzi AI ani mechaniki retry/recovery;
-- repo ma nazewnictwo statusow domenowych `Pending/Running`, podczas gdy API wystawia `queued/processing`; worker musi korzystac z jednego, jawnie ustalonego modelu mapowania.
+- repo ma nazewnictwo statusow domenowych `Pending/Running`, podczas gdy API wystawia `queued/processing`; worker musi korzystac z jednego, jawnie ustalonego 
+modelu mapowania.
+Komentarz architekta: uzywamy tego co w repo pending running
 
 Najwazniejsza niespojnosc specyfikacji do rozstrzygniecia przed kodowaniem:
 - PRD i `analysis_for_prd_summary.md` opisuja plan jako tekst o stalej strukturze;
 - `.ai/api_plan v2.md` zaklada `trip_plan` + `trip_plan_item` i odpowiedz JSON;
 - rekomendacja: jako kanoniczny model zapisu przyjac nowszy kontrakt z `api_plan v2`, a surowy output AI trzymac opcjonalnie w `response_payload` joba do diagnostyki.
+Komentarz architekata: korzystamy z ustrukturyzowanego modelu trip_plans i plan_items,
+w pliku  20260116170705_vibe_trvelers.sql w repo masz model sql
 
 ## 2. Konfiguracja workera
 ### Rekomendowany host
@@ -77,10 +81,6 @@ Dodac opcje konfiguracyjne, np.:
 - `ResponsePayload` jako opcjonalny raw output AI
 - concurrency token (`xmin` albo jawna kolumna wersji) do optimistic concurrency
 
-### Encje, ktorych dzis brakuje
-- `TripInputSnapshot`
-- `TripPlan`
-- `TripPlanItem` jesli zespol przyjmuje model z `api_plan v2`
 
 ### Zasady zapisu po stronie queue endpointu
 Queue handler i worker musza opierac sie na tym samym kontrakcie danych. Przy tworzeniu joba trzeba w jednej transakcji zapisac:
@@ -102,6 +102,7 @@ Payload zapisany przy kolejkowaniu powinien zawierac co najmniej:
 - `budgetLevel`
 - `pace`
 - posortowana liste tagow z `tagId`, `code`, `displayName`, `order`
+Komentarz architekta: w trip jest juz cala walidacja i jest ona uruchamiana przy zapisie trip i potem przy tworzeniu joba wiec do rozwazenia czy potrzebujemy uruchamiac ja 3 raz a juz na pewnoe nie pisac od nowa tej samej logiki
 
 ### Zasady zapisu po stronie workera
 Po udanej generacji worker powinien w jednej transakcji:
@@ -111,7 +112,6 @@ Po udanej generacji worker powinien w jednej transakcji:
 - jesli nowszy job istnieje, ustawic `Status = Succeeded`, `Discarded = true`, `DiscardReason = "newer_job_exists"` i nie zapisywac planu;
 - jesli job jest nadal najnowszy, zapisac / nadpisac finalny plan;
 - zaktualizowac `Trip.GeneratedAt`, `Trip.HasGeneratedPlan`, `Trip.UpdatedAt`;
-- zapisac `TripInputSnapshot` typu `after_generation`, jesli zespol chce pelnej historii zgodnej z PRD;
 - ustawic `Status = Succeeded`, `FinishedAt`, `ErrorCode = null`, `ErrorMessage = null`.
 
 ## 4. Flow przetwarzania danych
@@ -213,11 +213,6 @@ Rekomendacja dla MVP:
 - uzyc outputu JSON zgodnego z ustalonym schema planu;
 - walidowac output po stronie workera przed zapisem;
 - surowa odpowiedz AI moze trafic do `ResponsePayload` wylacznie do diagnostyki, nie do endpointow read model.
-
-Jesli zespol pozostaje przy modelu tekstowym z PRD, worker nadal powinien:
-- wymusic stala strukture sekcji;
-- parsowac i walidowac wynik przed zapisem;
-- zachowac raw text osobno od znormalizowanego modelu odczytu.
 
 ### Bezpieczenstwo integracji
 - nie logowac promptu, pelnych notatek uzytkownika ani raw odpowiedzi modelu na poziomie `Information`;
@@ -330,7 +325,3 @@ Rekomendowane metryki:
    - application/integration: claimowanie jobow, recovery `Running`, `newer job exists`, retry transientne;
    - end-to-end: queue endpoint zapisuje job, worker generuje plan, status endpoint pokazuje kolejne stany.
 
-
-Komentarze architekta (nadpisują to co wyżej):
-- odnośnie trip_input_snapshot to jest niepotrzebne ,  tabela generation_jobs ma kolumne input_snapshot
-a encja w domenie AiGenerationJob ma kolumne AiGenerationJob

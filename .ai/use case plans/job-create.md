@@ -1,272 +1,338 @@
-# API Endpoint Implementation Plan: POST /trips/{tripId}/generation-jobs
+# API Endpoint Implementation Plan: PUT /trips/{tripId}/plan
 
 ## 1. Przeglad punktu koncowego
-Endpoint sluzy do zakolejkowania nowego zadania generacji lub regeneracji planu dla istniejacego `trip`. Jest to endpoint typu command/write i zgodnie z kontraktem async job pattern musi zwracac `202 Accepted` natychmiast po zapisaniu rekordu joba, bez wykonywania wywolania OpenAI w pipeline HTTP.
+Endpoint sluzy do pelnej, manualnej podmiany istniejacego planu wycieczki dla wskazanego `tripId`. Jest to endpoint typu command/write i powinien zwracac `200 OK` z kompletnym `Plan DTO` po zapisaniu nowej wersji planu.
 
-Najwazniejsze cechy wdrozenia:
-- endpoint jest podpiety pod zasob `trip`, wiec zawsze musi sprawdzac ownership i istnienie wycieczki;
-- walidacja biznesowa opiera sie nie na body requestu, ale na aktualnym stanie rekordu `trip` oraz jego tagach;
-- po sukcesie backend zapisuje rekord `ai_generation_job` ze statusem `queued` oraz dane potrzebne workerowi do pozniejszego przetworzenia;
-- rekomendowane jest wymuszenie zasady "co najwyzej jeden aktywny job na trip" przez partial unique index i obsluge `409 JOB_ALREADY_ACTIVE`;
-- aktualne repo ma juz szkice DTO `Jobs`, ale nie ma jeszcze handlera, encji joba, encji snapshotu ani endpointu dla `POST /trips/{tripId}/generation-jobs`.
+Najwazniejsze zalozenia wdrozeniowe:
+- endpoint nie tworzy nowego zasobu planu od zera; jezeli `trip` istnieje, ale plan nie istnieje, nalezy zwrocic `404 PLAN_NOT_FOUND`;
+- endpoint zastepuje caly plan atomowo: naglowek planu oraz cala kolekcje pozycji;
+- po manualnej edycji plan powinien miec `status = saved`, `savedAt = now(UTC)` oraz zwiekszony `version`;
+- `generatedFromJobId` i `generatedAt` powinny zostac zachowane z poprzedniego planu, jezeli plan powstal w wyniku generacji AI; to jest konieczna decyzja implementacyjna, bo spec nie opisuje jawnie resetowania tych pol;
+- request nie zawiera `item.id`, wiec po replace wszystkie pozycje planu dostaja nowe identyfikatory i nowe znaczniki `createdAt` oraz `updatedAt`.
 
-Istotna niespojnosc specyfikacji, ktora trzeba rozstrzygnac w kodzie:
-- spec 7.1 mowi o pojedynczym "stay length", ale obecny model `Trip` przechowuje `StayLengthMinDays` i `StayLengthMaxDays`;
-- rekomendacja wdrozeniowa dla MVP: uznac, ze do kolejkowania obie wartosci musza byc obecne i kazda musi miescic sie w `[2..21]`, a dodatkowo `StayLengthMaxDays >= StayLengthMinDays`;
-- to pozwala pozostac zgodnym z obecnym modelem domenowym bez wprowadzania ukrytych heurystyk na etapie queue.
+Stan repo, ktory trzeba uwzglednic w planie:
+- istnieja juz szkice kontraktow Application dla `UpdatePlanCommand`, `GetPlanByTripIdQuery`, `PlanQueryModel` i `PlanItemCommandModel`;
+- nie ma jeszcze handlerow, endpointow Minimal API ani persistence modelu dla strukturalnego planu;
+- repo jest w trakcie migracji z namespace `Legacy` do nowszego feature `Plans`, wiec wdrozenie powinno domknac nowy feature zamiast dokladac kolejny tor obok `Legacy`;
+- `.ai/db_plan.md` opisuje uproszczony `trip_plan.current_text`, ale aktualne modele API i starszy SQL bazowy zakladaja plan strukturalny z pozycjami; przed implementacja trzeba jawnie wybrac jedna wersje persistence.
 
-Komentarz architekta: tak oba StayLengthMinDays, StayLengthMaxDays mają być uwzględnione
+Rekomendacja architektoniczna:
+- wdrozyc persistence zgodny z obecnym `Plan DTO`, nie z `current_text`;
+- wykorzystac naglowek planu plus osobna tabele pozycji, bo tylko taki model pozwala poprawnie obsluzyc `version`, `status`, `savedAt`, `generatedAt`, `item.id`, `item.updatedAt` oraz `tags`.
 
 ## 2. Szczegoly zadania
-- Metoda HTTP: `POST`
-- Struktura URL: `/trips/{tripId}/generation-jobs`
+- Metoda HTTP: `PUT`
+- Struktura URL: `/trips/{tripId}/plan`
 - Naglowki:
   - docelowo wymagane: `Authorization: Bearer <token>`
   - opcjonalne: `X-Correlation-Id`
-  - rekomendowane: `Idempotency-Key`, jesli zespol chce ograniczyc duplikaty przy retry klienta
 - Parametry:
   - wymagane: `tripId` (`Guid`) w route
-  - opcjonalne: brak
-- Request Body:
-  - brak; walidacja opiera sie na zapisanym stanie `trip`
-  - obecny placeholder `QueueGenerationJobCommandModel(bool? UseProfileDefaults)` nie wynika ze specyfikacji 7.1 i powinien zostac usuniety z kontraktu HTTP albo pozostac nieuzywanym artefaktem przejsciowym tylko do czasu refaktoru
+  - opcjonalne: brak query string
+
+### Request body
+```json
+{
+  "summary": "string|null",
+  "items": [
+    {
+      "dayNumber": 1,
+      "order": 10,
+      "title": "string",
+      "description": "string|null",
+      "locationText": "string|null",
+      "startTime": "HH:mm|null",
+      "endTime": "HH:mm|null",
+      "durationMinutes": 90,
+      "costLevel": "low|medium|high|null",
+      "tags": ["culture"]
+    }
+  ]
+}
+```
+
+### Parametry wymagane i opcjonalne
+- Wymagane:
+  - `tripId`
+  - `items`
+  - dla kazdej pozycji: `dayNumber`, `order`, `title`, `durationMinutes`
+- Opcjonalne:
+  - `summary`
+  - dla kazdej pozycji: `description`, `locationText`, `startTime`, `endTime`, `costLevel`, `tags`
 
 ### Wymagane reguly walidacji
 - `tripId` nie moze byc pustym `Guid`
-- `trip` musi istniec, nalezec do aktualnego usera i nie byc soft-deleted
-- `DateFrom` i `DateTo` musza byc obecne
-- `StayLengthMinDays` i `StayLengthMaxDays` musza byc obecne
-- `StayLengthMinDays` i `StayLengthMaxDays` musza miescic sie w `[2..21]`
-- `StayLengthMaxDays` musi byc `>= StayLengthMinDays`
-- `PeopleCount` musi byc obecne i dodatnie
-- co najmniej jeden z warunkow kontekstowych musi byc spelniony:
-  - `NoteText` po trim nie jest puste
-  - `PlaceText` po trim nie jest puste
-  - liczba tagow tripa wynosi co najmniej `2`
-- jesli obowiazuje zasada jednego aktywnego joba, brak innego joba dla tego samego `tripId` w statusie `queued` lub `processing`
+- `items` nie moze byc `null`
+- `items[].title` jest wymagane i nie moze byc puste po `Trim()`
+- `items[].dayNumber >= 1`
+- `items[].order` jest wymagane
+- `items[].startTime` i `items[].endTime`, jezeli sa podane, musza miec format `HH:mm`
+- `items[].costLevel`, jezeli jest podane, musi nalezec do `low|medium|high`
+
+Walidacje, ktore wynikaja z DTO i powinny zostac doprecyzowane w kodzie:
+- `durationMinutes` w spec jest polem wymaganym i nie-null, ale obecny `PlanItemCommandModel` ma `int?`; rekomendacja: ujednolicic kontrakt do pola wymaganego i walidowac `> 0`;
+- jezeli `order` ma byc dozwolonym `0`, obecny model wejscia musi umiec odroznic "brak pola" od "wartosc 0"; samo `int` nie daje tej mozliwosci podczas bindowania JSON;
+- `tags` najlepiej normalizowac do pustej listy zamiast `null`, bo odpowiedz DTO zawsze zwraca tablice.
 
 ### Wymagane typy i modele
-- istniejace do dostosowania:
-  - `QueueGenerationJobCommand`
-  - `QueueGenerationJobCommandRequest`
-  - `QueueGenerationJobCommandResponse`
-  - `GenerationJobQueryModel`
-- rekomendowane nowe lub zmienione typy Application:
-  - `QueueGenerationJobCommand(Guid UserId, QueueGenerationJobCommandRequest Request) : IRequest<Result<QueueGenerationJobCommandResponse>>`
-  - `QueueGenerationJobCommandRequest(Guid TripId)`
-  - `QueueGenerationJobCommandRequestValidator`
-  - dedykowany model odpowiedzi, np. `QueuedGenerationJobQueryModel`, jesli zespol chce zachowac zwarta odpowiedz 7.1 i nie przeciekac pol z endpointow statusowych
-- nowe typy domenowe / persistence:
-  - `AiGenerationJob`
-  - `TripInputSnapshot`
-  - opcjonalny enum lub stale dla kodow bledow workerowych
-- typy istniejace, ktore beda wykorzystane pomocniczo:
-  - `Trip`
-  - `TripTag`
-  - `GenerationJobStatus`
-  - `InputSnapshotKind`
+- Istniejace do wykorzystania lub korekty:
+  - `UpdatePlanCommand`
+  - `UpdatePlanCommandRequest`
+  - `UpdatePlanCommandResponse`
+  - `UpdatePlanCommandModel`
+  - `PlanItemCommandModel`
+  - `PlanQueryModel`
+  - `PlanItemQueryModel`
+  - `GetPlanByTripIdQuery`
+  - `GetPlanByTripIdQueryResponse`
+- Nowe elementy Application:
+  - `UpdatePlanCommandHandler`
+  - `UpdatePlanCommandRequestValidator`
+  - `UpdatePlanCommandModelValidator`
+  - `PlanItemCommandModelValidator`
+- Nowe elementy Domain / Infrastructure:
+  - `TripPlan`
+  - `TripPlanItem`
+  - opcjonalnie `TripPlanMapper` lub podobny komponent projekcyjny
+- Nowe bledy domenowe:
+  - `PLAN_NOT_FOUND`
 
 ### Wyodrebnienie logiki do service
-Handler nie powinien zawierac calej logiki walidacji gotowosci do generacji i budowania payloadu dla worker'a. Najlepszy podzial odpowiedzialnosci:
-- `QueueGenerationJobCommandHandler` odpowiada za ownership, transakcje i zapis
-- nowy serwis aplikacyjny, np. `ITripGenerationPreparationService`, odpowiada za:
-  - sprawdzenie regul `GENERATION_REQUIREMENTS_NOT_MET`
-  - policzenie nastepnego `generationNo` dla `trip_input_snapshot`
-  - zbudowanie `requestPayload` do `ai_generation_job`
-  - zbudowanie `payload` do `trip_input_snapshot`
-- osobny serwis do samego uruchamiania AI nie jest potrzebny na etapie tego endpointu; wywolanie AI ma nastapic pozniej w `BackgroundService`
+Handler nie powinien zawierac calej logiki replace, wersjonowania i mapowania pozycji. Zalecany podzial:
+- `UpdatePlanCommandHandler`:
+  - ownership check,
+  - decyzja `TRIP_NOT_FOUND` vs `PLAN_NOT_FOUND`,
+  - transakcja,
+  - wywolanie serwisu,
+  - zapis i zwrot DTO;
+- nowy serwis, np. `ITripPlanWriteService`:
+  - normalizacja `summary` i pol tekstowych itemow,
+  - walidacja i przygotowanie nowych `TripPlanItem`,
+  - wyliczenie nowego `version`,
+  - ustawienie `status = saved` i `savedAt`,
+  - atomowa wymiana calej kolekcji itemow;
+- wspolny mapper, np. `IPlanReadModelMapper`:
+  - mapowanie encji persistence do `PlanQueryModel`,
+  - wspolna logika dla `PUT /trips/{tripId}/plan` i przyszlego `GET /trips/{tripId}/plan`.
 
 ## 3. Szczegoly odpowiedzi
-- `202 Accepted`
-  ```json
-  {
-    "job": {
+- `200 OK`
+```json
+{
+  "tripId": "uuid",
+  "version": 4,
+  "status": "saved",
+  "generatedFromJobId": "uuid|null",
+  "generatedAt": "timestamp|null",
+  "savedAt": "timestamp",
+  "summary": "string|null",
+  "items": [
+    {
       "id": "uuid",
-      "tripId": "uuid",
-      "status": "queued",
-      "requestedAt": "timestamp",
-      "attemptNo": 0
+      "dayNumber": 1,
+      "order": 10,
+      "title": "string",
+      "description": "string|null",
+      "locationText": "string|null",
+      "startTime": "HH:mm|null",
+      "endTime": "HH:mm|null",
+      "durationMinutes": 90,
+      "costLevel": "low|medium|high|null",
+      "tags": ["culture"],
+      "createdAt": "timestamp",
+      "updatedAt": "timestamp"
     }
-  }
-  ```
-- Naglowki odpowiedzi:
-  - `X-Correlation-Id`
-- Kody statusu:
-  - `202` po poprawnym zapisaniu joba
-  - `400 VALIDATION_ERROR` dla bledow technicznych requestu, np. pusty `tripId` lub niepoprawny binding
-  - `400 GENERATION_REQUIREMENTS_NOT_MET` dla niespelnionych warunkow biznesowych generacji
-  - `401 UNAUTHORIZED` docelowo po wlaczeniu auth
-  - `404 TRIP_NOT_FOUND` gdy `tripId` nie istnieje, nalezy do innego usera albo rekord jest soft-deleted
-  - `409 JOB_ALREADY_ACTIVE` gdy dla `tripId` istnieje juz aktywny job
-  - `500 INTERNAL_ERROR` dla bledow nieoczekiwanych
+  ]
+}
+```
 
-Rekomendacja dla kontraktu odpowiedzi:
-- nie zwracac pelnego `GenerationJobQueryModel`, jesli zawiera pola nieobecne w spec 7.1, takie jak `startedAt`, `finishedAt`, `discarded`, `discardReason`;
-- lepiej dodac mniejszy model tylko dla operacji queue, a `GenerationJobQueryModel` zostawic dla `GET /generation-jobs/{jobId}`.
+### Zasady mapowania odpowiedzi
+- `status` po sukcesie powinien byc zawsze `saved`
+- `version` powinien zostac zwiekszony o `1` wzgledem poprzedniego planu
+- `savedAt` powinien byc ustawiony na aktualny czas UTC
+- `generatedFromJobId` oraz `generatedAt` powinny zostac zachowane z poprzedniego planu, jezeli byly ustawione
+- wszystkie nowe pozycje powinny dostac nowe `id`
+- `createdAt` i `updatedAt` dla nowych pozycji powinny byc ustawione podczas replace
+- odpowiedz powinna byc serializowana w `camelCase`
+- timestampy powinny byc w UTC zgodnie z reguami projektu
+
+### Zasady formatowania czasu
+Spec wymaga `HH:mm`, a obecne modele korzystaja z `TimeOnly?`. Domyslna serializacja `TimeOnly` w .NET nie gwarantuje zgodnosci ze spec, dlatego nalezy dodac wlasny `JsonConverter<TimeOnly>` i `JsonConverter<TimeOnly?>` dla:
+- requestu `PUT /trips/{tripId}/plan`
+- odpowiedzi `PlanQueryModel`
 
 ## 4. Przeplyw danych
-1. Klient wywoluje `POST /trips/{tripId}/generation-jobs` z JWT i opcjonalnym `X-Correlation-Id`.
+1. Klient wysyla `PUT /trips/{tripId}/plan` z body zawierajacym caly nowy plan.
 2. Minimal API w `TripsEndpoints`:
    - odczytuje lub generuje `X-Correlation-Id`,
    - binduje `tripId` z route,
-   - nie binduje body, bo kontrakt 7.1 go nie przewiduje,
-   - pobiera `userId` z kontekstu auth; tymczasowe `DevelopmentUserId` moze pozostac jedynie jako etap przejsciowy.
-3. Endpoint wysyla `QueueGenerationJobCommand` przez `IMediator`.
-4. `QueueGenerationJobCommandRequestValidator` wykonuje walidacje skladniowa:
-   - `TripId != Guid.Empty`.
-5. Handler laduje `Trip` po `tripId` i `userId`, razem z `TripTags`, oraz filtruje rekordy soft-deleted.
-6. Jesli rekord nie istnieje, handler zwraca `Result.Fail(ResultErrors.TripNotFound(...))`.
-7. `ITripGenerationPreparationService` sprawdza warunki gotowosci do generacji:
-   - obecne daty,
-   - obecne i poprawne wartosci stay range,
-   - dodatni `PeopleCount`,
-   - `NoteText` lub `PlaceText` lub co najmniej dwa tagi.
-8. Gdy warunki nie sa spelnione, handler zwraca `Result.Fail(ResultErrors.GenerationRequirementsNotMet(...))`, najlepiej z `details` opisujacymi, ktore warunki zawiodly.
-9. Handler sprawdza konflikt aktywnego joba:
-   - najpierw lekki pre-check po `tripId` i statusach `queued|processing`,
-   - nastepnie zapis jest dodatkowo chroniony przez partial unique index, aby uniknac race condition.
-10. W jednej transakcji handler:
-    - oblicza nastepny `generationNo`,
-    - tworzy rekord `trip_input_snapshot` typu `before_generation`,
-    - tworzy rekord `ai_generation_job` ze statusem `queued`, `requestedAt = UtcNow`, `attemptNo = 0`,
-    - zapisuje `requestPayload`, z ktorego worker bedzie mogl wznowic przetwarzanie po restarcie aplikacji.
-11. Handler mapuje encje joba do modelu odpowiedzi i zwraca `202 Accepted`.
-12. Dalsze przetwarzanie odbywa sie poza requestem HTTP:
-    - `BackgroundService` polluje baze po `queued` jobach,
-    - aktualizuje statusy do `processing`, `succeeded`, `failed`, `canceled`,
-    - zapisuje wynik lub blad do `ai_generation_job`,
-    - nie uzywa `Task.Run()` z endpointu ani z handlera.
+   - binduje body do `UpdatePlanCommandRequest`,
+   - pobiera `userId` z auth; do czasu wdrozenia auth moze tymczasowo korzystac z `TripsEndpoints.DevelopmentUserId`.
+3. Endpoint wysyla `UpdatePlanCommand` przez `IMediator`.
+4. FluentValidation wykonuje walidacje skladniowa:
+   - `TripId != Guid.Empty`
+   - poprawny body shape
+   - poprawne wartosci pol itemow
+   - poprawny format czasu `HH:mm`
+5. Handler pobiera `Trip` po `tripId + userId` i filtruje rekordy soft-deleted.
+6. Jezeli `Trip` nie istnieje, handler zwraca `404 TRIP_NOT_FOUND`.
+7. Handler pobiera istniejacy plan wraz z pozycjami.
+8. Jezeli `Trip` istnieje, ale plan nie istnieje, handler zwraca `404 PLAN_NOT_FOUND`.
+9. `ITripPlanWriteService` normalizuje dane:
+   - `summary`, `title`, `description`, `locationText` po `Trim()`
+   - `tags` do listy bez `null`
+   - `costLevel` do enum lub stalej zgodnej z kontraktem
+10. W jednej transakcji serwis:
+   - aktualizuje naglowek planu (`summary`, `status`, `savedAt`, `version`, `updatedAt`),
+   - usuwa poprzednie pozycje planu,
+   - wstawia nowa kolekcje pozycji planu,
+   - zapisuje wszystkie zmiany jednym `SaveChangesAsync`.
+11. Handler mapuje zaktualizowany plan do `PlanQueryModel`.
+12. Endpoint zwraca `200 OK` z pelnym `Plan DTO`.
 
-### Zawartosc `requestPayload` i snapshotu
-Minimalny payload zapisany w DB powinien zawierac wszystko, co jest potrzebne workerowi po restarcie:
-- `tripId`
-- `userId`
-- `title`
-- `placeText`
-- `noteText`
-- `dateFrom`
-- `dateTo`
-- `stayLengthMinDays`
-- `stayLengthMaxDays`
-- `peopleCount`
-- `budgetLevel`
-- `pace`
-- uporzadkowana liste tagow z `tagId`, `code`, `displayName`, `order`
+### Rekomendowany model persistence
+Obecna specyfikacja API nie da sie poprawnie odwzorowac w uproszczonym `trip_plan.current_text`. Z tego powodu rekomendowany jest model strukturalny:
+- tabela `trip_plans`
+  - `trip_id`
+  - `user_id`
+  - `version`
+  - `status`
+  - `generated_from_job_id`
+  - `generated_at`
+  - `saved_at`
+  - `summary`
+  - `created_at`
+  - `updated_at`
+- tabela `trip_plan_items`
+  - `id`
+  - `trip_id`
+  - `day_number`
+  - `order`
+  - `title`
+  - `description`
+  - `location_text`
+  - `start_time`
+  - `end_time`
+  - `duration_minutes`
+  - `cost_level`
+  - `tags` jako `text[]`
+  - `created_at`
+  - `updated_at`
 
-To pozwala zachowac zgodnosc z regula "persist everything required to resume processing after restart".
+Powod rekomendacji:
+- `PlanQueryModel` jest juz strukturalny;
+- request i response operuja na kolekcji itemow;
+- item ma wlasne `id`, `createdAt`, `updatedAt`, ktorych nie da sie odzyskac z pola tekstowego bez dodatkowego parsera;
+- `tags` sa per item, a nie per caly plan.
 
 ## 5. Wzgledy bezpieczenstwa
-- Endpoint powinien byc chroniony JWT Bearer; `AllowAnonymous()` nie jest zgodne z docelowym kontraktem.
-- Ownership musi byc egzekwowany w handlerze przez filtr `tripId + userId`; odpowiedz dla cudzego zasobu powinna byc `404 TRIP_NOT_FOUND`, nie `403`.
-- Nie wolno przyjmowac `userId` z body ani query.
-- Rate limiting per user jest wymagany dla endpointow startujacych generacje, bo to bezposrednio kontroluje koszt integracji AI.
-- `requestPayload` i `trip_input_snapshot.payload` moga zawierac dane wrazliwe biznesowo; nie nalezy ich logowac w `ILogger`.
-- W logach i `ProblemDetails` nalezy ograniczyc sie do `tripId`, `jobId`, `traceId`, `correlationId`, bez dumpowania `noteText`.
-- Wszystkie operacje I/O musza byc async i przyjmowac `CancellationToken`.
-- W przypadku wdrozenia `Idempotency-Key` nalezy pilnowac, by nie stal sie zrodlem enumeracji cudzych jobow; klucz powinien byc powiazany z userem i sciezka endpointu.
+- Endpoint docelowo musi byc chroniony JWT Bearer, zgodnie z zasadami projektu.
+- Ownership musi byc sprawdzany w handlerze, nie tylko w endpointzie.
+- Dla cudzego `tripId` nalezy zwracac `404 TRIP_NOT_FOUND`, nie `403`, aby nie ulatwiac enumeracji zasobow.
+- Nie wolno przyjmowac `userId` z body ani z query string.
+- Wszystkie dane tekstowe planu nalezy traktowac jako plain text; backend nie powinien zapisywac ani renderowac HTML.
+- Frontend powinien wyswietlac te pola w sposob bezpieczny dla XSS; backend nie powinien zakladac, ze `description` jest zaufanym HTML.
+- Logi musza redagowac dane wrazliwe; logowac nalezy `tripId`, `userId`, `traceId`, `correlationId`, ale nie pelna tresc `summary` ani `description`.
+- Wszystkie operacje DB musza byc async i przyjmowac `CancellationToken`.
+- Ze wzgledu na potencjalnie duzy payload nalezy ustawic rozsadne limity dlugosci dla pol tekstowych i liczby pozycji planu; jesli biznes nie dostarczyl limitow, trzeba je doprecyzowac przed wdrozeniem lub przyjac konserwatywne wartosci aplikacyjne.
 
 ## 6. Obsluga bledow
 - `400 VALIDATION_ERROR`
   - `tripId` jest pustym `Guid`
-  - binder nie potrafi sparsowac parametru route
-- `400 GENERATION_REQUIREMENTS_NOT_MET`
-  - brak `DateFrom`
-  - brak `DateTo`
-  - brak `StayLengthMinDays` lub `StayLengthMaxDays`
-  - `StayLengthMinDays` albo `StayLengthMaxDays` poza `[2..21]`
-  - `StayLengthMaxDays < StayLengthMinDays`
-  - brak `PeopleCount` albo `PeopleCount <= 0`
-  - `NoteText` puste po trim, `PlaceText` puste po trim i mniej niz 2 tagi
+  - `items` jest `null`
+  - `items[].title` jest puste
+  - `items[].dayNumber < 1`
+  - `items[].order` nie zostalo przekazane lub nie przechodzi walidacji kontraktu
+  - `items[].startTime` lub `items[].endTime` ma niepoprawny format
+  - `items[].costLevel` jest spoza dozwolonego zbioru
+  - `items[].durationMinutes` jest `null` albo `<= 0` po doprecyzowaniu kontraktu
+  - body nie daje sie zdeserializowac
 - `404 TRIP_NOT_FOUND`
-  - rekord nie istnieje
-  - rekord nalezy do innego usera
-  - rekord jest soft-deleted
-- `409 JOB_ALREADY_ACTIVE`
-  - istnieje juz job w statusie `queued` lub `processing` dla tego samego `tripId`
-  - rownolegly request wpadl na partial unique index podczas zapisu
+  - trip nie istnieje
+  - trip nalezy do innego usera
+  - trip jest soft-deleted
+- `404 PLAN_NOT_FOUND`
+  - trip istnieje, ale nie ma powiazanego planu do manualnej podmiany
 - `401 UNAUTHORIZED`
   - brak lub niepoprawny token po wlaczeniu auth
 - `500 INTERNAL_ERROR`
-  - blad DB
-  - wyjatek w serializacji payloadu
+  - nieoczekiwany blad EF Core
+  - blad transakcji
   - inny nieoczekiwany blad runtime
 
 ### Rejestrowanie bledow
-Aktualny plan DB nie ma dedykowanej tabeli technicznych bledow i nie warto jej dodawac tylko dla tego endpointu. Rekomendacja:
-- dla bledow przed utworzeniem joba korzystac z `Result` + `ProblemDetails` + `ILogger`
-- dla bledow po zakolejkowaniu, ale podczas przetwarzania workerem, zapisywac `error_code` i `error_message` w `ai_generation_job`
-- nie zapisywac osobnych rekordow `ai_generation_job` dla odrzuconych requestow typu `TRIP_NOT_FOUND` lub `GENERATION_REQUIREMENTS_NOT_MET`
+Ten endpoint nie korzysta z asynchronicznego joba, wiec zapis bledow do `ai_generation_job.error_code` nie ma tu zastosowania. Aktualny model danych nie ma tez dedykowanej tabeli bledow technicznych. Rekomendacja:
+- expected failures obslugiwac przez `Result` + `ProblemDetails`;
+- unexpected failures logowac przez `ILogger` i `ExceptionHandlingMiddleware`;
+- nie dodawac osobnej tabeli bledow tylko dla tego endpointu;
+- opcjonalny `audit_event` moze w przyszlosci sluzyc do sledzenia biznesowego "plan manually updated", ale nie jako storage bledow technicznych.
 
-### Wymagane rozszerzenia `ResultErrors`
-Nalezy dodac stabilne bledy domenowe:
-- `TRIP_NOT_FOUND` ze statusem `404`
-- `GENERATION_REQUIREMENTS_NOT_MET` ze statusem `400`
-- `JOB_ALREADY_ACTIVE` ze statusem `409`
+### Niezbedne rozszerzenia bledow
+Nalezy dodac do `ResultErrors`:
+- `PLAN_NOT_FOUND` ze statusem `404`
 
 ## 7. Wydajnosc
-- Ladowac `Trip` wraz z `TripTags` jednym zapytaniem, bez dodatkowych round-tripow po kazdym tagu.
-- Utrzymac indeksy zgodne z `.ai/db_plan.md`:
-  - `ai_job_trip_requested_idx (trip_id, requested_at DESC)`
-  - `ai_job_status_requested_idx (status, requested_at DESC)`
-  - `ai_job_one_active_per_trip_idx (trip_id) WHERE status IN ('queued','processing')`
-  - `trip_input_snapshot_trip_gen_idx (trip_id, generation_no DESC)`
-- Konflikt aktywnego joba rozwiazywac na poziomie DB, nie tylko w kodzie aplikacji.
-- Tworzenie joba i snapshotu wykonywac w jednej transakcji, aby uniknac pol-zapisow.
-- `requestPayload` powinien byc mozliwie zwarty; zapisywac tylko dane potrzebne workerowi, nie cale encje EF.
-- Endpoint ma byc lekki obliczeniowo: bez OpenAI, bez `Task.Run()`, bez blokowania requestu oczekiwaniem na wynik generacji.
-- Worker powinien pozniej stosowac bounded parallelism i retry tylko dla bledow transientnych; retry nie powinny byc czescia logiki endpointu queue.
+- Plan i jego pozycje powinny byc ladowane jednym zapytaniem, bez N+1.
+- Replace pozycji musi byc wykonany w jednej transakcji, aby uniknac stanu posredniego "naglowek zapisany, itemy nie".
+- Jezeli implementacja korzysta z strategii `delete + insert`, nalezy ograniczyc liczbe round-tripow do bazy i zapisac wszystko jednym `SaveChangesAsync`.
+- Dla odczytu planu i kolejnosci pozycji warto utrzymac indeksy:
+  - po `trip_id` na `trip_plans`
+  - po `trip_id, day_number, order` na `trip_plan_items`
+- Warto wprowadzic optimistic concurrency dla naglowka planu, bo endpoint wykonuje pelny replace i jest podatny na "last write wins" przy rownoleglych edycjach. Spec PUT nie dostarcza jeszcze `If-Match`, ale kolumna `version` powinna byc aktualizowana atomowo i przygotowana pod przyszle zabezpieczenie przed utrata zmian.
+- Nie nalezy wykonywac dodatkowych projekcji lub sortowan w pamieci, jezeli kolejnosc itemow moze byc ustalona w SQL.
 
 ## 8. Kroki implementacji
-1. Uporzadkowac kontrakt endpointu
-   - dodac route `POST /trips/{tripId:guid}/generation-jobs` do `TripsEndpoints`
-   - pozostawic endpoint bez body
-   - zachowac obsluge `X-Correlation-Id`
-2. Uporzadkowac kontrakty Application
-   - zmienic `QueueGenerationJobCommand` tak, aby implementowal `IRequest<Result<QueueGenerationJobCommandResponse>>`
-   - dodac `UserId` do commandu
-   - uproscic `QueueGenerationJobCommandRequest` do samego `TripId`
-   - usunac albo wycofac z HTTP `QueueGenerationJobCommandModel(bool? UseProfileDefaults)`
-3. Dodac walidacje i kody bledow
-   - utworzyc `QueueGenerationJobCommandRequestValidator`
-   - rozszerzyc `ResultErrors` o `TRIP_NOT_FOUND`, `GENERATION_REQUIREMENTS_NOT_MET`, `JOB_ALREADY_ACTIVE`
-   - upewnic sie, ze `ResultHttpMapper` mapuje `409` poprawnie do `ProblemDetails`
-4. Dodac modele domenowe i persistence
-   - utworzyc encje `AiGenerationJob` i `TripInputSnapshot`
-   - rozszerzyc `IAppDbContext` oraz `AppDbContext` o nowe `DbSet<>`
-   - dodac konfiguracje EF Core, indeksy i migracje
-   - jesli zespol chce zachowac pola `discarded` i `discardReason` z modeli query, uzgodnic schema drift miedzy `.ai/api_plan v2.md` a `.ai/db_plan.md`
-5. Dodac serwis przygotowania generacji
-   - utworzyc `ITripGenerationPreparationService`
-   - zaimplementowac walidacje gotowosci tripa
-   - zaimplementowac budowe `requestPayload`
-   - zaimplementowac wyliczanie kolejnego `generationNo`
-6. Zaimplementowac handler MediatR
-   - pobrac `Trip` wraz z tagami po `tripId + userId`
-   - zwrocic `TRIP_NOT_FOUND`, jesli rekord nie istnieje
-   - wywolac serwis przygotowania
-   - sprawdzic aktywny job
-   - zapisac `TripInputSnapshot` i `AiGenerationJob` w jednej transakcji
-   - zwrocic `202` z kompaktowym modelem odpowiedzi
-7. Dodac endpoint Minimal API
-   - rozszerzyc `TripsEndpoints`
-   - dodac `.Produces<QueueGenerationJobCommandResponse>(202)`
-   - dodac `.ProducesProblem(400)`, `.ProducesProblem(401)`, `.ProducesProblem(404)`, `.ProducesProblem(409)`
-   - docelowo ustawic `RequireAuthorization()`
-8. Przygotowac worker
-   - dodac `BackgroundService` przetwarzajacy `queued` joby
-   - aktualizowac statusy i `attemptNo`
-   - zapisywac `error_code` i `error_message` przy porazce
-   - nie wdrazac wywolan AI w samym endpointcie
-9. Dodac testy
-   - jednostkowe dla walidacji gotowosci generacji
-   - jednostkowe dla `QueueGenerationJobCommandRequestValidator`
-   - testy handlera:
-     - sukces zwraca `202` i zapisuje job + snapshot
-     - `TRIP_NOT_FOUND` dla cudzego, nieistniejacego lub usunietego tripa
-     - `GENERATION_REQUIREMENTS_NOT_MET` dla brakujacych dat, stay range, people count i slabego kontekstu
-     - `JOB_ALREADY_ACTIVE` przy istniejacym jobie `queued` lub `processing`
-   - testy integracyjne endpointu:
-     - `POST /trips/{tripId}/generation-jobs` zwraca `202`
-     - odpowiedz zawiera `X-Correlation-Id`
-     - przy rownoleglych requestach tylko jeden zapis przechodzi, drugi zwraca `409`
-     - endpoint nie wykonuje zadnego wywolania AI inline
+1. Uzgodnic i utrwalic model persistence planu
+   - Odrzucic wariant `current_text` dla tego endpointu.
+   - Przyjac strukturalny model zgodny z `PlanQueryModel`.
+   - Uzgodnic, czy rozbudowujemy istniejacy stary SQL `trip_plans/plan_items`, czy tworzymy nowe tabele w aktualnej migracji EF.
+2. Domknac kontrakty Application
+   - Zmienic `UpdatePlanCommand` tak, aby implementowal `IRequest<Result<UpdatePlanCommandResponse>>`.
+   - Dodac `UserId` do commandu, analogicznie do pozostalych write endpointow.
+   - Doprecyzowac `PlanItemCommandModel` pod katem pol wymaganych, zwlaszcza `order` i `durationMinutes`.
+3. Dodac walidatory FluentValidation
+   - `UpdatePlanCommandRequestValidator`
+   - `UpdatePlanCommandModelValidator`
+   - `PlanItemCommandModelValidator`
+   - Walidacja musi obslugiwac `HH:mm`, `dayNumber >= 1`, `title` required i enum `costLevel`.
+4. Dodac persistence i konfiguracje EF Core
+   - `TripPlan`
+   - `TripPlanItem`
+   - `DbSet<>` w `IAppDbContext` i `AppDbContext`
+   - konfiguracje EF
+   - migracja z indeksami i ograniczeniami
+5. Dodac serwis replace planu
+   - `ITripPlanWriteService`
+   - logika wersjonowania
+   - logika `savedAt`
+   - replace calej kolekcji pozycji
+   - zachowanie `generatedFromJobId` i `generatedAt`
+6. Zaimplementowac `UpdatePlanCommandHandler`
+   - pobranie `Trip`
+   - rozroznienie `TRIP_NOT_FOUND` i `PLAN_NOT_FOUND`
+   - uruchomienie serwisu
+   - zapis transakcyjny
+   - mapowanie do `UpdatePlanCommandResponse`
+7. Zaimplementowac lub domknac odczyt planu
+   - `GetPlanByTripIdQueryHandler`
+   - wspolny mapper do `PlanQueryModel`
+   - uporzadkowanie wspolpracy miedzy nowym feature `Plans` i starym `Legacy`
+8. Dodac endpoint Minimal API
+   - `group.MapPut("/{tripId:guid}/plan", UpdatePlan)`
+   - `.Produces<UpdatePlanCommandResponse>(200)`
+   - `.ProducesProblem(400)`
+   - `.ProducesProblem(401)`
+   - `.ProducesProblem(404)`
+   - zachowac `X-Correlation-Id`
+9. Dodac konwertery JSON dla czasu
+   - wlasny converter `TimeOnly` i `TimeOnly?`
+   - rejestracja w `Program.cs`
+   - testy serializacji i deserializacji dla formatu `HH:mm`
+10. Dodac testy
+   - jednostkowe walidatorow
+   - jednostkowe serwisu replace
+   - testy handlera dla `TRIP_NOT_FOUND`
+   - testy handlera dla `PLAN_NOT_FOUND`
+   - testy handlera dla sukcesu z inkrementacja `version`
+   - testy integracyjne endpointu `PUT /trips/{tripId}/plan`
+   - test odpowiedzi z poprawnym formatem `HH:mm`

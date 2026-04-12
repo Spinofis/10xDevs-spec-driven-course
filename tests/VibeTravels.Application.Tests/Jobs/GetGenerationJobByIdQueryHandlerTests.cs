@@ -4,6 +4,7 @@ using VibeTravels.Application.Features.Jobs.Handlers;
 using VibeTravels.Application.Features.Jobs.Queries;
 using VibeTravels.Application.Features.Jobs.Services;
 using VibeTravels.Domain.Entities.Jobs;
+using VibeTravels.Domain.Entities.Plans;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Trips;
 using VibeTravels.Domain.Entities.Users;
@@ -156,6 +157,8 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
         public DbSet<Trip> Trips => Set<Trip>();
         public DbSet<TripTag> TripTags => Set<TripTag>();
         public DbSet<AiGenerationJob> AiGenerationJobs => Set<AiGenerationJob>();
+        public DbSet<TripPlan> TripPlans => Set<TripPlan>();
+        public DbSet<PlanItem> PlanItems => Set<PlanItem>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -184,6 +187,11 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
             modelBuilder.Entity<TripTag>(builder =>
             {
                 builder.HasKey(e => new { e.TripId, e.TagId });
+            });
+
+            modelBuilder.Entity<TripPlan>(builder =>
+            {
+                builder.HasKey(e => e.TripId);
             });
 
             base.OnModelCreating(modelBuilder);

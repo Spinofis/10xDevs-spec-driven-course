@@ -19,6 +19,7 @@ public sealed class AiGenerationJob
     public string? ErrorMessage { get; private set; }
     public bool Discarded { get; private set; }
     public string? DiscardReason { get; private set; }
+    public string? ResponsePayload { get; private set; }
 
     private AiGenerationJob()
     {
@@ -60,6 +61,48 @@ public sealed class AiGenerationJob
             ErrorMessage = null,
             Discarded = false,
             DiscardReason = null,
+            ResponsePayload = null,
         });
+    }
+    public void MarkPendingForRetry(string errorCode, string? errorMessage)
+    {
+        Status = AiGenerationJobStatus.Pending;
+        StartedAt = null;
+        FinishedAt = null;
+        ErrorCode = errorCode;
+        ErrorMessage = errorMessage;
+    }
+
+    public void MarkSucceeded(DateTimeOffset finishedAt)
+    {
+        Status = AiGenerationJobStatus.Succeeded;
+        FinishedAt = finishedAt;
+        ErrorCode = null;
+        ErrorMessage = null;
+        Discarded = false;
+        DiscardReason = null;
+    }
+
+    public void MarkDiscardedAsSucceeded(DateTimeOffset finishedAt, string discardReason)
+    {
+        Status = AiGenerationJobStatus.Succeeded;
+        FinishedAt = finishedAt;
+        ErrorCode = null;
+        ErrorMessage = null;
+        Discarded = true;
+        DiscardReason = discardReason;
+    }
+
+    public void MarkFailed(DateTimeOffset finishedAt, string errorCode, string? errorMessage)
+    {
+        Status = AiGenerationJobStatus.Failed;
+        FinishedAt = finishedAt;
+        ErrorCode = errorCode;
+        ErrorMessage = errorMessage;
+    }
+
+    public void SetResponsePayload(string? responsePayload)
+    {
+        ResponsePayload = responsePayload;
     }
 }

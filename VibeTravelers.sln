@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VibeTravels.Application.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VibeTravelers.API.IntegrationTests", "tests\VibeTravelers.API.IntegrationTests\VibeTravelers.API.IntegrationTests.csproj", "{1F169FD7-C93F-499B-80A7-08FD809BBB1E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VibeTravels.Worker", "VibeTravelers.API\VibeTravels.Worker\VibeTravels.Worker.csproj", "{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{1F169FD7-C93F-499B-80A7-08FD809BBB1E}.Release|x64.Build.0 = Release|Any CPU
 		{1F169FD7-C93F-499B-80A7-08FD809BBB1E}.Release|x86.ActiveCfg = Release|Any CPU
 		{1F169FD7-C93F-499B-80A7-08FD809BBB1E}.Release|x86.Build.0 = Release|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Debug|x64.Build.0 = Debug|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Debug|x86.Build.0 = Debug|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Release|x64.ActiveCfg = Release|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Release|x64.Build.0 = Release|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Release|x86.ActiveCfg = Release|Any CPU
+		{47CD2882-84A9-4F5C-B9F4-AA5D9076FFA7}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

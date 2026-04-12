@@ -3,6 +3,7 @@ using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Tags.Handlers;
 using VibeTravels.Application.Features.Tags.Queries;
 using VibeTravels.Domain.Entities.Jobs;
+using VibeTravels.Domain.Entities.Plans;
 using VibeTravels.Domain.Entities.Tags;
 using VibeTravels.Domain.Entities.Trips;
 using VibeTravels.Domain.Entities.Users;
@@ -82,6 +83,8 @@ public sealed class ListTagsQueryHandlerTests
         public DbSet<Trip> Trips => Set<Trip>();
         public DbSet<TripTag> TripTags => Set<TripTag>();
         public DbSet<AiGenerationJob> AiGenerationJobs => Set<AiGenerationJob>();
+        public DbSet<TripPlan> TripPlans => Set<TripPlan>();
+        public DbSet<PlanItem> PlanItems => Set<PlanItem>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -110,6 +113,11 @@ public sealed class ListTagsQueryHandlerTests
             modelBuilder.Entity<TripTag>(builder =>
             {
                 builder.HasKey(e => new { e.TripId, e.TagId });
+            });
+
+            modelBuilder.Entity<TripPlan>(builder =>
+            {
+                builder.HasKey(e => e.TripId);
             });
 
             base.OnModelCreating(modelBuilder);

@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Common;
 using VibeTravels.Application.Features.Jobs.Commands;
+using VibeTravels.Application.Features.Jobs.Models;
 using VibeTravels.Application.Features.Jobs.Queries.Models;
 using VibeTravels.Application.Features.Jobs.Services;
 using VibeTravels.Domain.Common.Results;
@@ -16,7 +16,6 @@ namespace VibeTravels.Application.Features.Jobs.Handlers;
 
 public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGenerationJobCommand, Result<QueueGenerationJobCommandResponse>>
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly IAppDbContext _db;
     private readonly IGenerationJobStatusMapper _generationJobStatusMapper;
 
@@ -125,35 +124,31 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
         var orderedTags = trip.TripTags
             .OrderBy(x => x.Order ?? 0)
             .ThenBy(x => x.TagId)
-            .Select(x => new
-            {
-                tagId = x.TagId,
-                code = x.Tag.Code,
-                displayName = x.Tag.DisplayName,
-                order = x.Order ?? 0
-            })
+            .Select(x => new GenerationJobRequestPayloadTag(
+                x.TagId,
+                x.Tag.Code,
+                x.Tag.DisplayName,
+                x.Order ?? 0))
             .ToArray();
 
-        var payload = new
-        {
-            tripId = trip.Id,
+        var payload = new GenerationJobRequestPayload(
+            trip.Id,
             userId,
-            title = trip.Title.Value,
-            placeText = trip.PlaceText?.Value,
-            noteText = trip.NoteText,
-            dateFrom = trip.DateFrom,
-            dateTo = trip.DateTo,
-            stayLengthMinDays = trip.StayLengthMinDays,
-            stayLengthMaxDays = trip.StayLengthMaxDays,
-            peopleCount = trip.PeopleCount,
-            budgetLevel = trip.BudgetLevel,
-            pace = trip.Pace,
-            tags = orderedTags
-        };
+            trip.Title.Value,
+            trip.PlaceText?.Value,
+            trip.NoteText,
+            trip.DateFrom,
+            trip.DateTo,
+            trip.StayLengthMinDays,
+            trip.StayLengthMaxDays,
+            trip.PeopleCount,
+            trip.BudgetLevel,
+            trip.Pace,
+            orderedTags);
 
         try
         {
-            return Result<string>.Ok(JsonSerializer.Serialize(payload, JsonOptions));
+            return Result<string>.Ok(payload.ToJson());
         }
         catch (Exception exception)
         {

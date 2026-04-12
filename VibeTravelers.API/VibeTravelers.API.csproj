@@ -25,6 +25,9 @@
     <Compile Remove="VibeTravels.Infrastructure\**" />
     <Content Remove="VibeTravels.Infrastructure\**" />
     <None Remove="VibeTravels.Infrastructure\**" />
+    <Compile Remove="VibeTravels.Worker\**" />
+    <Content Remove="VibeTravels.Worker\**" />
+    <None Remove="VibeTravels.Worker\**" />
   </ItemGroup>
 
 </Project>

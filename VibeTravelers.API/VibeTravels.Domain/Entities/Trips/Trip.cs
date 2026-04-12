@@ -144,6 +144,13 @@ public sealed class Trip
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public void MarkPlanGenerated(DateTimeOffset generatedAt)
+    {
+        GeneratedAt = generatedAt;
+        HasGeneratedPlan = true;
+        UpdatedAt = generatedAt;
+    }
+
     public Result ValidateCurrentState(bool hasAnyTags, bool requireCompleteTripData)
     {
         var stateResult = NormalizeAndValidateState(
