@@ -32,6 +32,13 @@ public static class ResultErrors
             Status: HttpStatusCode.NotFound,
             Target: target);
 
+    public static Error PlanNotFound(string? target = null)
+        => new(
+            Code: "PLAN_NOT_FOUND",
+            Message: "Plan was not found.",
+            Status: HttpStatusCode.NotFound,
+            Target: target);
+
     public static Error GenerationRequirementsNotMet(string message, string? target = null)
         => new(
             Code: "GENERATION_REQUIREMENTS_NOT_MET",

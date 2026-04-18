@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using VibeTravels.Application.Common.Behaviors;
 using VibeTravels.Application.Features.Jobs.Services;
+using VibeTravels.Application.Features.Plans.Services;
 
 namespace VibeTravels.Application;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddScoped<IGenerationJobStatusMapper, GenerationJobStatusMapper>();
+        services.AddScoped<ITripPlanReadService, TripPlanReadService>();
 
         return services;
     }

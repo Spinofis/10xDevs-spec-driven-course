@@ -20,7 +20,6 @@ builder.Services.Configure<HostOptions>(options =>
 
 builder.Services.AddScoped<GenerationJobPollingService>();
 builder.Services.AddScoped<GenerationJobProcessor>();
-//Czy taka konfiguracja zapewnia ze ten job bedzie dzialal? Nic nie trzeba wiecej robic?
 builder.Services.AddHostedService<JobPollingHostedService>();
 
 var host = builder.Build();

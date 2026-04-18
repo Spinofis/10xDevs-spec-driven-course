@@ -41,8 +41,6 @@ public sealed class JobPollingHostedService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var pollingService = scope.ServiceProvider.GetRequiredService<GenerationJobPollingService>();
 
-                //Review 
-                // Czy ten delay na pewno to jest potrzeby? Skoro wyzej w tym while tez jest delay?
                 var processedJobs = await pollingService.RunOnceAsync(stoppingToken);
                 var delaySeconds = processedJobs == 0 ? idleDelaySeconds : pollDelaySeconds;
                 await DelayAsync(delaySeconds, stoppingToken);

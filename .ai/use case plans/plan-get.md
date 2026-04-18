@@ -14,11 +14,11 @@ Najwazniejsze zalozenia wdrozeniowe:
 
 Istotny stan obecnego repo, ktory trzeba uwzglednic w planie:
 - istnieja szkielety `GetPlanByTripIdQuery`, `GetPlanByTripIdQueryRequest`, `GetPlanByTripIdQueryResponse`, `PlanQueryModel` i `PlanItemQueryModel`;
-- obecny `GetPlanByTripIdQuery` nie niesie `UserId`, wiec nie da sie w nim poprawnie wymusic ownership;
+- obecny `GetPlanByTripIdQuery` nie niesie `UserId` i nie implementuje jeszcze kontraktu MediatR z `Result`, wiec nie da sie w nim poprawnie wymusic ownership;
 - nie istnieje jeszcze endpoint Minimal API dla `/trips/{tripId}/plan`;
-- `AppDbContext` i `IAppDbContext` nie eksponuja jeszcze persistence dla planu;
-- fizyczne tabele `trip_plans` i `plan_items` istnieja w `20260116170705_vibe_trvelers.sql`, ale ich aktualny ksztalt nie pokrywa calego kontraktu API 8.1;
-- dokument `.ai/db_plan.md` opisuje starszy model tekstowy `trip_plan`, podczas gdy `.ai/api_plan v2.md` i komentarz architekta wskazuja model strukturalny oparty o `trip_plans` + `plan_items`.
+- `AppDbContext` i `IAppDbContext` maja juz `TripPlans` oraz `PlanItems`, ale obecny model encji/kolumn jest starszy od docelowego `Plan DTO`;
+- fizyczne tabele `trip_plans` i `plan_items` istnieja, ale ich aktualny ksztalt nie pokrywa calego kontraktu API 8.1;
+- dokument `.ai/db_plan.md` opisuje starszy model tekstowy `trip_plan`, podczas gdy kontrakt endpointu wymaga modelu strukturalnego opartego o `trip_plans` + `plan_items`.
 
 Rekomendacja architektoniczna dla tego endpointu:
 - jako source of truth przyjac model strukturalny planu;
@@ -61,9 +61,6 @@ Rekomendacja architektoniczna dla tego endpointu:
 - wymagane elementy persistence/domeny:
   - `TripPlan` jako naglowek planu
   - `PlanItem` jako pozycja planu
-  - opcjonalnie oddzielny mechanizm dla `tags` na itemie:
-    - `text[]` / `jsonb` w `plan_items`, albo
-    - osobna tabela `plan_item_tags`
 - typy wspierajace:
   - `Trip`
   - `PlanStatus`
@@ -101,21 +98,19 @@ Rekomendowany podzial:
     "status": "generated|saved",
     "generatedFromJobId": "uuid|null",
     "generatedAt": "timestamp|null",
-    "savedAt": "timestamp|null",
+    "updatedAt": "timestamp|null",
     "summary": "string|null",
     "items": [
       {
         "id": "uuid",
-        "dayNumber": 1,
         "order": 10,
         "title": "string",
         "description": "string|null",
-        "locationText": "string|null",
-        "startTime": "HH:mm|null",
-        "endTime": "HH:mm|null",
-        "durationMinutes": 90,
-        "costLevel": "low|medium|high|null",
-        "tags": ["culture", "walking"],
+        "sortOrder": "int",
+        "placeName": "string|null",
+        "itemDate": "date",
+        "itemTime": "time",
+        "placeType": ["Attraction|Restaurant|Hotel"],
         "createdAt": "timestamp",
         "updatedAt": "timestamp"
       }
@@ -127,49 +122,18 @@ Rekomendowany podzial:
 - Kody statusu:
   - `200` po poprawnym odczycie planu
   - `400 VALIDATION_ERROR` dla bledow route/input, np. pusty `tripId`
-  - `401 UNAUTHORIZED` po wlaczeniu auth
   - `404 TRIP_NOT_FOUND` gdy trip nie istnieje, jest usuniety albo nie nalezy do usera
   - `404 PLAN_NOT_FOUND` gdy trip istnieje, ale brak planu
   - `500 INTERNAL_ERROR` dla bledow nieoczekiwanych
 
-### Krytyczne dopasowanie schema -> DTO
-Aktualny fizyczny model SQL nie pokrywa jeszcze calego `Plan DTO`. Przed implementacja endpointu trzeba domknac persistence tak, aby dalo sie bez strat odwzorowac:
-- `version`
-- `status`
-- `generatedFromJobId`
-- `generatedAt`
-- `savedAt`
-- `summary`
-- dla itemu:
-  - `dayNumber`
-  - `order`
-  - `title`
-  - `description`
-  - `locationText`
-  - `startTime`
-  - `endTime`
-  - `durationMinutes`
-  - `costLevel`
-  - `tags`
-  - `createdAt`
-  - `updatedAt`
-
-Najwazniejsze rozjazdy dzis:
-- `trip_plans` ma `generation_job_id`, `title`, `summary`, `created_at`, `updated_at`, ale brak mu co najmniej `version`, `saved_at` i czytelnego znacznika statusu;
-- `plan_items` ma obecnie `item_date`, `item_time`, `sort_order`, `place_type`, `place_name`, `description`, `created_at`, co nie wystarcza do DTO 8.1;
-- `PlanItemQueryModel` przewiduje `updatedAt`, `endTime`, `durationMinutes` i `tags`, ktorych persistence dzis nie przechowuje.
-
-Rekomendacja wdrozeniowa:
-- nie implementowac endpointu na podstawie stanu "jakos zmapujemy to po drodze";
-- najpierw uzgodnic i zmigrowac schema do kontraktu API;
-- dopiero potem dodac handler i endpoint.
 
 ## 4. Przeplyw danych
-1. Klient wywoluje `GET /trips/{tripId}/plan` z JWT i opcjonalnym `X-Correlation-Id`.
+1. Klient wywoluje `GET /trips/{tripId}/plan` i opcjonalnym `X-Correlation-Id`.
 2. Minimal API:
    - odczytuje lub generuje `X-Correlation-Id`,
    - binduje `tripId` z route,
-   - pobiera `userId` z kontekstu auth; obecne `DevelopmentUserId` moze pozostac tylko jako etap przejsciowy.
+   - pobiera `userId` ; obecne `DevelopmentUserId` moze pozostac tylko jako etap przejsciowy.
+
 3. Endpoint wysyla `GetPlanByTripIdQuery` przez `IMediator`.
 4. `GetPlanByTripIdQueryValidator` sprawdza `TripId != Guid.Empty`.
 5. Handler wykonuje pierwszy odczyt:
@@ -178,12 +142,9 @@ Rekomendacja wdrozeniowa:
 6. Jesli `trip` nie istnieje, handler zwraca `Result.Fail(ResultErrors.TripNotFound(...))`.
 7. Handler lub `ITripPlanReadService` wykonuje odczyt planu:
    - pobiera naglowek planu po `tripId`,
-   - pobiera items w kolejnosci `dayNumber`, `order`,
+   - pobiera items w kolejnosci `date`, `order`,
    - mapuje dane persistence na `PlanQueryModel`.
 8. Jesli plan nie istnieje, zwracane jest `Result.Fail(ResultErrors.PlanNotFound(...))`.
-9. Handler ustala `status`:
-   - `saved`, jezeli plan ma `savedAt`
-   - w przeciwnym razie `generated`
 10. Endpoint zwraca `200 OK` z `Plan DTO`.
 
 ### Rekomendowany sposob odczytu z bazy
@@ -201,15 +162,6 @@ Poniewaz fizyczne tabele juz istnieja, najlepsza sciezka to ich rozszerzenie i p
   - mapowac do `plan_items`
 - jesli obecne nazwy kolumn sa zbyt stare wobec kontraktu, dodac migracje rozszerzajaca obecny model zamiast budowac nowy od zera
 
-## 5. Wzgledy bezpieczenstwa
-- Endpoint powinien byc chroniony JWT Bearer; `AllowAnonymous()` nie jest zgodne z docelowym kontraktem.
-- Ownership musi byc wymuszany w handlerze na podstawie `tripId + userId`.
-- Dla cudzego `tripId` odpowiedz powinna byc `404 TRIP_NOT_FOUND`, nie `403`, aby nie ujawniac istnienia zasobu.
-- Endpoint nie powinien zwracac zadnych danych workerowych ani payloadow AI; tylko `Plan DTO`.
-- Logi nie powinny zawierac calych itemow planu ani surowych danych wejscia generacji na poziomie `Information`.
-- `X-Correlation-Id` powinien byc propagowany, aby laczyc odczyt planu z logami generacji i zapisow.
-- Wszystkie operacje I/O musza byc cancelable przez `CancellationToken`.
-- Przy wdrozeniu RLS lub podobnych mechanizmow DB ownership na `trip_plans` / `plan_items` powinien byc oparty o relacje do `trip.user_id`.
 
 ## 6. Obsluga bledow
 - `400 VALIDATION_ERROR`
@@ -222,8 +174,6 @@ Poniewaz fizyczne tabele juz istnieja, najlepsza sciezka to ich rozszerzenie i p
 - `404 PLAN_NOT_FOUND`
   - trip istnieje, ale brak naglowka planu
   - trip istnieje, ale plan nie ma jeszcze zadnych danych uznawanych za plan gotowy do odczytu
-- `401 UNAUTHORIZED`
-  - brak lub niepoprawny token po wlaczeniu auth
 - `500 INTERNAL_ERROR`
   - niespojnosc schema i modelu EF
   - nieobslugiwany blad mapowania enumow/czasow
@@ -247,41 +197,9 @@ Ten endpoint jest read-only, wiec nie ma uzasadnienia dla osobnej tabeli bledow.
 - Odczyt items wykonywac po `trip_id` i w kolejnosci wspieranej indeksem.
 - Jesli plan ma duzo items, pobierac tylko pola potrzebne do `PlanQueryModel`, bez materializacji pelnych grafow encji.
 - Dwa selekty sa akceptowalne i czytelne; optymalizacja do jednej projekcji ma sens dopiero po potwierdzeniu realnego problemu.
-- Warto utrzymac indeks sortujacy items zgodnie z rzeczywistym kontraktem odczytu:
-  - jesli trzymamy `day_number` i `order`, indeks na `(trip_id, day_number, "order")`
-  - jesli przejsciowo zostaje `item_date`, indeks musi wspierac stabilne mapowanie do `dayNumber`
+- Warto utrzymac indeks sortujacy items zgodnie z rzeczywistym kontraktem odczytu
 - Endpoint bedzie naturalnie czesto odpytywany po generacji i po edycji planu, ale nie jest pollingowym hotspotem porownywalnym z job status endpointem; prostota i czytelnosc sa wazniejsze niz mikrooptymalizacje.
 
-## 8. Kroki implementacji
-1. Uzgodnic kanoniczny model planu
-   - potwierdzic, ze obowiazujacy jest model strukturalny z `.ai/api_plan v2.md`
-   - uznac tekstowy opis `trip_plan.current_text` z `.ai/db_plan.md` za nieaktualny dla plan endpoints
-   - doprecyzowac, czy fizyczne tabele pozostaja plural (`trip_plans`, `plan_items`) i tylko dokumentacja wymaga korekty
-
-2. Domknac schema persistence do `Plan DTO`
-   - porownac obecne kolumny `trip_plans` i `plan_items` z kontraktem 8.1
-   - dodac brakujace kolumny/migracje dla naglowka planu:
-     - `version`
-     - `saved_at`
-     - ewentualny explicytny status lub zasade jego wyliczania
-     - `generated_at`, jesli ma byc trzymane na planie zamiast odczytywane z `trip`
-   - dodac brakujace kolumny/migracje dla itemow:
-     - `day_number`
-     - `order`
-     - `title`
-     - `location_text`
-     - `start_time`
-     - `end_time`
-     - `duration_minutes`
-     - `cost_level`
-     - `updated_at`
-     - `tags` albo osobne `plan_item_tags`
-
-3. Dodac modele domenowe i EF Core
-   - utworzyc encje `TripPlan` i `PlanItem`
-   - dodac konfiguracje EF dla obu encji
-   - rozszerzyc `IAppDbContext` i `AppDbContext` o `DbSet<TripPlan>` i `DbSet<PlanItem>`
-   - zachowac mapowanie do istniejacych fizycznych tabel
 
 4. Uporzadkowac kontrakty Application dla feature `Plans`
    - zmienic `GetPlanByTripIdQuery` na ksztalt zgodny z projektem, np. `GetPlanByTripIdQuery(Guid UserId, GetPlanByTripIdQueryRequest Request) : IRequest<Result<GetPlanByTripIdQueryResponse>>`
@@ -308,8 +226,7 @@ Ten endpoint jest read-only, wiec nie ma uzasadnienia dla osobnej tabeli bledow.
 8. Dodac endpoint Minimal API
    - rozszerzyc `TripsEndpoints` o `GET /{tripId:guid}/plan` albo dodac dedykowane `PlansEndpoints` pod grupa `/trips`
    - zachowac obsluge `X-Correlation-Id`
-   - dodac `.Produces<PlanQueryModel>(200)`, `.ProducesProblem(400)`, `.ProducesProblem(401)`, `.ProducesProblem(404)`
-   - docelowo zastapic `AllowAnonymous()` przez `RequireAuthorization()`
+   - dodac `.Produces<PlanQueryModel>(200)`, `.ProducesProblem(400)`, `.ProducesProblem(404)`
 
 9. Dodac testy jednostkowe
    - validator: `Guid.Empty`

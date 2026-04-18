@@ -96,8 +96,6 @@ public sealed class GenerationJobProcessor
             return;
         }
 
-        //Review
-        // Bardzo dobrze, ¿e jest tutaj UtcNow zamiast zwyk³ego Now, ale czy nie potrzebna jest jakaœ abstrakcja czasu, ¿eby mo¿na by³o to ³atwiej testowaæ?
         var now = DateTimeOffset.UtcNow;
         job.SetResponsePayload(generatedResult.RawResponsePayload);
 
