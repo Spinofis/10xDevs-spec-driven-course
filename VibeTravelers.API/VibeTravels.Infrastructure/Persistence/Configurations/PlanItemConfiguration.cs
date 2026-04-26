@@ -20,12 +20,13 @@ public sealed class PlanItemConfiguration : IEntityTypeConfiguration<PlanItem>
             .HasColumnName("trip_id")
             .IsRequired();
 
+        builder.Property(x => x.DayNumber)
+            .HasColumnName("day_number")
+            .IsRequired();
+
         builder.Property(x => x.ItemDate)
             .HasColumnName("item_date")
             .IsRequired();
-
-        builder.Property(x => x.ItemTime)
-            .HasColumnName("item_time");
 
         builder.Property(x => x.SortOrder)
             .HasColumnName("sort_order")
@@ -38,15 +39,22 @@ public sealed class PlanItemConfiguration : IEntityTypeConfiguration<PlanItem>
                 value => ParsePlaceType(value))
             .IsRequired();
 
-        builder.Property(x => x.PlaceName)
-            .HasColumnName("place_name")
+        builder.Property(x => x.Title)
+            .HasColumnName("title")
             .IsRequired();
 
         builder.Property(x => x.Description)
             .HasColumnName("description");
 
+        builder.Property(x => x.LocationText)
+            .HasColumnName("location_text");
+
         builder.Property(x => x.CreatedAt)
             .HasColumnName("created_at")
+            .IsRequired();
+
+        builder.Property(x => x.UpdatedAt)
+            .HasColumnName("updated_at")
             .IsRequired();
 
         builder.HasOne<Trip>()
@@ -54,8 +62,8 @@ public sealed class PlanItemConfiguration : IEntityTypeConfiguration<PlanItem>
             .HasForeignKey(x => x.TripId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(x => new { x.TripId, x.ItemDate, x.SortOrder })
-            .HasDatabaseName("plan_items_trip_id_date_order_idx");
+        builder.HasIndex(x => new { x.TripId, x.DayNumber, x.SortOrder, x.Id })
+            .HasDatabaseName("plan_items_trip_id_day_order_idx");
     }
 
     private static PlanItemPlaceType ParsePlaceType(string value)

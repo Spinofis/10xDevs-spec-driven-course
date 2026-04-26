@@ -7,9 +7,9 @@ public sealed record PlanItemQueryModel(
     int DayNumber,
     int Order,
     string Title,
+    DateTimeOffset ItemDate,
     string? Description,
     string? LocationText,
-    TimeOnly? StartTime,
     PlanItemPlaceType PlaceType,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

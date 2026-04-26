@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
+using VibeTravels.Application.Features.Plans.Commands;
+using VibeTravels.Application.Features.Plans.Commands.Models;
 using VibeTravels.Application.Features.Plans.Handlers;
-using VibeTravels.Application.Features.Plans.Queries;
 using VibeTravels.Application.Features.Plans.Services;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Plans;
@@ -12,7 +13,7 @@ using VibeTravels.Domain.ValueObjects;
 
 namespace VibeTravels.Application.Tests.Plans;
 
-public sealed class GetPlanByTripIdQueryHandlerTests
+public sealed class UpdatePlanCommandHandlerTests
 {
     private static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid OtherUserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -26,7 +27,7 @@ public sealed class GetPlanByTripIdQueryHandlerTests
 
         var handler = CreateHandler(db);
         var result = await handler.Handle(
-            new GetPlanByTripIdQuery(UserId, new GetPlanByTripIdQueryRequest(Guid.NewGuid())),
+            new UpdatePlanCommand(UserId, CreateRequest(Guid.NewGuid(), "summary")),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -34,38 +35,17 @@ public sealed class GetPlanByTripIdQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsTripNotFound_WhenTripBelongsToDifferentUser()
+    public async Task Handle_ReturnsPlanNotFound_WhenPlanDoesNotExist()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
-        db.Users.Add(CreateUser(OtherUserId));
-
-        var trip = CreateTrip(OtherUserId);
-        db.Trips.Add(trip);
-        await db.SaveChangesAsync();
-
-        var handler = CreateHandler(db);
-        var result = await handler.Handle(
-            new GetPlanByTripIdQuery(UserId, new GetPlanByTripIdQueryRequest(trip.Id)),
-            CancellationToken.None);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal("TRIP_NOT_FOUND", result.Errors[0].Code);
-    }
-
-    [Fact]
-    public async Task Handle_ReturnsPlanNotFound_WhenTripExistsButPlanIsMissing()
-    {
-        await using var db = CreateDbContext();
-        db.Users.Add(CreateUser(UserId));
-
         var trip = CreateTrip(UserId);
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
         var handler = CreateHandler(db);
         var result = await handler.Handle(
-            new GetPlanByTripIdQuery(UserId, new GetPlanByTripIdQueryRequest(trip.Id)),
+            new UpdatePlanCommand(UserId, CreateRequest(trip.Id, "summary")),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -73,92 +53,109 @@ public sealed class GetPlanByTripIdQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsMappedPlan_WithStableItemOrdering()
+    public async Task Handle_ReturnsJobAlreadyActive_WhenPendingGenerationJobExists()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
+        var trip = CreateTrip(UserId);
+        db.Trips.Add(trip);
+        db.TripPlans.Add(TripPlan.Create(
+            trip.Id,
+            generationJobId: null,
+            title: "Trip plan",
+            summary: "summary",
+            new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero)));
 
+        var jobResult = AiGenerationJob.CreatePending(
+            tripId: trip.Id,
+            userId: UserId,
+            inputSnapshot: "{}",
+            inputHash: "hash",
+            requestedAt: new DateTimeOffset(2026, 8, 2, 9, 0, 0, TimeSpan.Zero));
+        Assert.True(jobResult.IsSuccess);
+        Assert.NotNull(jobResult.Value);
+        db.AiGenerationJobs.Add(jobResult.Value!);
+        await db.SaveChangesAsync();
+
+        var handler = CreateHandler(db);
+        var result = await handler.Handle(
+            new UpdatePlanCommand(UserId, CreateRequest(trip.Id, "summary")),
+            CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("JOB_ALREADY_ACTIVE", result.Errors[0].Code);
+    }
+
+    [Fact]
+    public async Task Handle_ReplacesItemsAndSetsSavedStatus_WhenPayloadIsValid()
+    {
+        await using var db = CreateDbContext();
+        db.Users.Add(CreateUser(UserId));
+        db.Users.Add(CreateUser(OtherUserId));
         var trip = CreateTrip(UserId);
         db.Trips.Add(trip);
 
-        var generationJobId = Guid.Parse("33333333-3333-3333-3333-333333333333");
-        var createdAt = new DateTimeOffset(2026, 8, 1, 10, 0, 0, TimeSpan.Zero);
-        var plan = TripPlan.Create(trip.Id, generationJobId, "Summer trip", "City highlights", createdAt);
-        db.TripPlans.Add(plan);
-
-        db.PlanItems.Add(PlanItem.CreateGenerated(
+        var createdAt = new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero);
+        db.TripPlans.Add(TripPlan.Create(
             trip.Id,
-            dayNumber: 2,
-            itemDate: new DateTimeOffset(2026, 8, 2, 19, 0, 0, TimeSpan.Zero),
-            sortOrder: 20,
-            placeType: PlanItemPlaceType.Restaurant,
-            title: "Dinner",
-            description: "Seafood",
-            locationText: "Dinner",
+            generationJobId: Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            title: "Trip plan",
+            summary: "Generated summary",
             createdAt));
 
         db.PlanItems.Add(PlanItem.CreateGenerated(
             trip.Id,
             dayNumber: 1,
-            itemDate: new DateTimeOffset(2026, 8, 1, 14, 0, 0, TimeSpan.Zero),
-            sortOrder: 30,
-            placeType: PlanItemPlaceType.Attraction,
-            title: "Museum",
-            description: "Old town museum",
-            locationText: "Museum",
-            createdAt));
-
-        db.PlanItems.Add(PlanItem.CreateGenerated(
-            trip.Id,
-            dayNumber: 1,
-            itemDate: new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero),
+            itemDate: new DateTimeOffset(2026, 8, 10, 9, 0, 0, TimeSpan.Zero),
             sortOrder: 10,
             placeType: PlanItemPlaceType.Restaurant,
-            title: "Breakfast",
-            description: "Cafe",
-            locationText: "Breakfast",
+            title: "Old breakfast",
+            description: "Old desc",
+            locationText: "Old location",
             createdAt));
 
         await db.SaveChangesAsync();
 
         var handler = CreateHandler(db);
-        var result = await handler.Handle(
-            new GetPlanByTripIdQuery(UserId, new GetPlanByTripIdQueryRequest(trip.Id)),
-            CancellationToken.None);
+        var request = CreateRequest(trip.Id, "Manual summary");
+        var result = await handler.Handle(new UpdatePlanCommand(UserId, request), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
-
-        var model = result.Value!.Plan;
-        Assert.Equal(trip.Id, model.TripId);
-        Assert.Equal(1, model.Version);
-        Assert.Equal("generated", model.Status.ToString().ToLowerInvariant());
-        Assert.Equal(generationJobId, model.GeneratedFromJobId);
-        Assert.NotNull(model.GeneratedAt);
-        Assert.Null(model.SavedAt);
-        Assert.Equal("City highlights", model.Summary);
-
-        Assert.Equal(3, model.Items.Count);
-        Assert.Equal("Breakfast", model.Items[0].Title);
-        Assert.Equal(1, model.Items[0].DayNumber);
-        Assert.Equal(10, model.Items[0].Order);
-        Assert.Equal(PlanItemPlaceType.Restaurant, model.Items[0].PlaceType);
-
-        Assert.Equal("Museum", model.Items[1].Title);
-        Assert.Equal(1, model.Items[1].DayNumber);
-        Assert.Equal(30, model.Items[1].Order);
-        Assert.Equal(PlanItemPlaceType.Attraction, model.Items[1].PlaceType);
-
-        Assert.Equal("Dinner", model.Items[2].Title);
-        Assert.Equal(2, model.Items[2].DayNumber);
-        Assert.Equal(20, model.Items[2].Order);
-        Assert.Equal(PlanItemPlaceType.Restaurant, model.Items[2].PlaceType);
+        Assert.Equal("saved", result.Value!.Plan.Status.ToString().ToLowerInvariant());
+        Assert.Equal(2, result.Value.Plan.Version);
+        Assert.Equal("Manual summary", result.Value.Plan.Summary);
+        Assert.Single(result.Value.Plan.Items);
+        Assert.Equal("Breakfast", result.Value.Plan.Items[0].Title);
+        Assert.Equal(1, result.Value.Plan.Items[0].DayNumber);
     }
 
-    private static GetPlanByTripIdQueryHandler CreateHandler(IAppDbContext db)
+    private static UpdatePlanCommandHandler CreateHandler(IAppDbContext db)
     {
         ITripPlanReadService readService = new TripPlanReadService(db);
-        return new GetPlanByTripIdQueryHandler(db, readService);
+        ITripPlanWriteService writeService = new TripPlanWriteService(db);
+        return new UpdatePlanCommandHandler(db, readService, writeService);
+    }
+
+    private static UpdatePlanCommandRequest CreateRequest(Guid tripId, string? summary)
+    {
+        return new UpdatePlanCommandRequest(
+            tripId,
+            summary,
+            new[]
+            {
+                new PlanItemCommandModel(
+                    Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                    DayNumber: 1,
+                    ItemDate: new DateTimeOffset(2026, 8, 10, 0, 0, 0, TimeSpan.Zero),
+                    Order: 10,
+                    Title: "Breakfast",
+                    Description: "Cafe stop",
+                    LocationText: "Central cafe",
+                    CreatedAt: new DateTimeOffset(2026, 8, 9, 9, 0, 0, TimeSpan.Zero),
+                    UpdatedAt: new DateTimeOffset(2026, 8, 10, 9, 15, 0, TimeSpan.Zero),
+                    PlaceType: PlanItemPlaceType.Restaurant)
+            });
     }
 
     private static Trip CreateTrip(Guid userId)

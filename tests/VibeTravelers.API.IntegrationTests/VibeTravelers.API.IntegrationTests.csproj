@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\VibeTravelers.API\VibeTravelers.API.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Schema\" />
+  </ItemGroup>
+
 </Project>

@@ -9,7 +9,6 @@ public sealed record PlanItemInputDto(
     string Title,
     string? Description,
     string? LocationText,
-    TimeOnly? StartTime,
     TimeOnly? EndTime,
     int? DurationMinutes,
     CostLevel? CostLevel,

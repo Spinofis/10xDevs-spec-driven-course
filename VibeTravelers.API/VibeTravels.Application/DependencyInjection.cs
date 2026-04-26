@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddScoped<IGenerationJobStatusMapper, GenerationJobStatusMapper>();
         services.AddScoped<ITripPlanReadService, TripPlanReadService>();
+        services.AddScoped<ITripPlanWriteService, TripPlanWriteService>();
 
         return services;
     }

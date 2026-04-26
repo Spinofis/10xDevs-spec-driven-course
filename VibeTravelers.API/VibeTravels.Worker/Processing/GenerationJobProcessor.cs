@@ -156,14 +156,23 @@ public sealed class GenerationJobProcessor
 
         var generatedItems = generatedResult.Days
             .OrderBy(x => x.Date)
-            .SelectMany(day => day.Items.Select(item => PlanItem.Create(
+            .Select((day, index) => new { Day = day, DayNumber = index + 1 })
+            .SelectMany(x => x.Day.Items.Select(item => PlanItem.CreateGenerated(
                 tripId: job.TripId,
-                itemDate: day.Date,
-                itemTime: item.Time,
+                dayNumber: x.DayNumber,
+                itemDate: new DateTimeOffset(
+                    x.Day.Date.Year,
+                    x.Day.Date.Month,
+                    x.Day.Date.Day,
+                    item.Time?.Hour ?? 0,
+                    item.Time?.Minute ?? 0,
+                    0,
+                    TimeSpan.Zero),
                 sortOrder: item.Order,
                 placeType: ParsePlaceType(item.PlaceType),
-                placeName: item.PlaceName.Trim(),
+                title: item.PlaceName.Trim(),
                 description: item.Description,
+                locationText: item.PlaceName.Trim(),
                 createdAt: now)))
             .ToArray();
 
@@ -212,7 +221,6 @@ public sealed class GenerationJobProcessor
         out TripPlanGenerationRequest? request,
         out string errorMessage)
     {
-        //Mam wrazenie ze te walidacje sie powtarzaja z tymi w metodzie ValidateGeneratedResult, sa wywolywane tuz po sobie to chyba bez sensu miec je obie
         if (payload.DateFrom is null || payload.DateTo is null)
         {
             request = null;

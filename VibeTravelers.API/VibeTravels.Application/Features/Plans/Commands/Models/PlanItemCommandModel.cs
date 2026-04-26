@@ -1,15 +1,15 @@
-using VibeTravels.Application.Features.Common;
+using VibeTravels.Domain.Entities.Plans;
 
 namespace VibeTravels.Application.Features.Plans.Commands.Models;
 
 public sealed record PlanItemCommandModel(
+    Guid Id,
     int DayNumber,
+    DateTimeOffset ItemDate,
     int Order,
     string Title,
     string? Description,
     string? LocationText,
-    TimeOnly? StartTime,
-    TimeOnly? EndTime,
-    int? DurationMinutes,
-    CostLevel? CostLevel,
-    IReadOnlyList<string> Tags);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    PlanItemPlaceType PlaceType);

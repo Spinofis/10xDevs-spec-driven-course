@@ -22,9 +22,12 @@ public sealed class TripPlanReadService : ITripPlanReadService
             .Select(x => new
             {
                 x.TripId,
+                x.Version,
+                x.Status,
                 x.GenerationJobId,
+                x.GeneratedAt,
+                x.SavedAt,
                 x.Summary,
-                x.UpdatedAt
             })
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -34,54 +37,45 @@ public sealed class TripPlanReadService : ITripPlanReadService
         var itemRows = await _db.PlanItems
             .AsNoTracking()
             .Where(x => x.TripId == tripId)
-            .OrderBy(x => x.ItemDate)
+            .OrderBy(x => x.DayNumber)
             .ThenBy(x => x.SortOrder)
             .ThenBy(x => x.Id)
             .Select(x => new
             {
                 x.Id,
+                x.DayNumber,
                 x.ItemDate,
-                x.ItemTime,
                 x.SortOrder,
                 x.PlaceType,
-                x.PlaceName,
+                x.Title,
                 x.Description,
-                x.CreatedAt
+                x.LocationText,
+                x.CreatedAt,
+                x.UpdatedAt
             })
             .ToListAsync(cancellationToken);
-
-        var dayNumbersByDate = itemRows
-            .Select(x => x.ItemDate)
-            .Distinct()
-            .OrderBy(x => x)
-            .Select((itemDate, index) => new { itemDate, DayNumber = index + 1 })
-            .ToDictionary(x => x.itemDate, x => x.DayNumber);
 
         var items = itemRows
             .Select(x => new PlanItemQueryModel(
                 x.Id,
-                dayNumbersByDate[x.ItemDate],
+                x.DayNumber,
                 x.SortOrder,
-                x.PlaceName,
+                x.Title,
+                x.ItemDate,
                 x.Description,
-                x.PlaceName,
-                x.ItemTime,
+                x.LocationText,
                 x.PlaceType,
                 x.CreatedAt,
-                UpdatedAt: x.CreatedAt))
+                x.UpdatedAt))
             .ToArray();
-
-        var status = planHeader.GenerationJobId is null
-            ? PlanStatus.Saved
-            : PlanStatus.Generated;
 
         return new PlanQueryModel(
             planHeader.TripId,
-            Version: 1,
-            status,
+            planHeader.Version,
+            (PlanStatus)planHeader.Status,
             planHeader.GenerationJobId,
-            GeneratedAt: planHeader.GenerationJobId is null ? null : planHeader.UpdatedAt,
-            SavedAt: planHeader.UpdatedAt,
+            planHeader.GeneratedAt,
+            planHeader.SavedAt,
             planHeader.Summary,
             items);
     }
