@@ -5,6 +5,7 @@ using System.Reflection;
 using VibeTravels.Application.Common.Behaviors;
 using VibeTravels.Application.Features.Jobs.Services;
 using VibeTravels.Application.Features.Plans.Services;
+using VibeTravels.Application.Features.Trips.Services;
 
 namespace VibeTravels.Application;
 
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IGenerationJobStatusMapper, GenerationJobStatusMapper>();
         services.AddScoped<ITripPlanReadService, TripPlanReadService>();
         services.AddScoped<ITripPlanWriteService, TripPlanWriteService>();
+        services.AddScoped<ITripInputFingerprintService, TripInputFingerprintService>();
 
         return services;
     }

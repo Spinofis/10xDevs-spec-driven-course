@@ -1,14 +1,12 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using System.Security.Cryptography;
-using System.Text;
 using VibeTravels.Application.Abstractions.Persistence;
 using VibeTravels.Application.Features.Common;
 using VibeTravels.Application.Features.Jobs.Commands;
-using VibeTravels.Application.Features.Jobs.Models;
 using VibeTravels.Application.Features.Jobs.Queries.Models;
 using VibeTravels.Application.Features.Jobs.Services;
+using VibeTravels.Application.Features.Trips.Services;
 using VibeTravels.Domain.Common.Results;
 using VibeTravels.Domain.Entities.Jobs;
 
@@ -18,13 +16,16 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
 {
     private readonly IAppDbContext _db;
     private readonly IGenerationJobStatusMapper _generationJobStatusMapper;
+    private readonly ITripInputFingerprintService _tripInputFingerprintService;
 
     public QueueGenerationJobCommandHandler(
         IAppDbContext db,
-        IGenerationJobStatusMapper generationJobStatusMapper)
+        IGenerationJobStatusMapper generationJobStatusMapper,
+        ITripInputFingerprintService tripInputFingerprintService)
     {
         _db = db;
         _generationJobStatusMapper = generationJobStatusMapper;
+        _tripInputFingerprintService = tripInputFingerprintService;
     }
 
     public async Task<Result<QueueGenerationJobCommandResponse>> Handle(
@@ -57,12 +58,12 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
         if (activeJobExists)
             return Result<QueueGenerationJobCommandResponse>.Fail(ResultErrors.JobAlreadyActive(nameof(request.Request.TripId)));
 
-        var payloadResult = BuildPayloadJson(trip, request.UserId);
-        if (payloadResult.IsSuccess is false || payloadResult.Value is null)
-            return Result<QueueGenerationJobCommandResponse>.Fail(payloadResult.Errors);
+        var fingerprintResult = _tripInputFingerprintService.Build(trip, request.UserId);
+        if (fingerprintResult.IsSuccess is false || fingerprintResult.Value is null)
+            return Result<QueueGenerationJobCommandResponse>.Fail(fingerprintResult.Errors);
 
-        var payloadJson = payloadResult.Value;
-        var inputHash = ComputeInputHash(payloadJson);
+        var payloadJson = fingerprintResult.Value.PayloadJson;
+        var inputHash = fingerprintResult.Value.Hash;
         var now = DateTimeOffset.UtcNow;
 
         var jobResult = AiGenerationJob.CreatePending(
@@ -119,46 +120,4 @@ public sealed class QueueGenerationJobCommandHandler : IRequestHandler<QueueGene
         return Result.Ok();
     }
 
-    private static Result<string> BuildPayloadJson(Domain.Entities.Trips.Trip trip, Guid userId)
-    {
-        var orderedTags = trip.TripTags
-            .OrderBy(x => x.Order ?? 0)
-            .ThenBy(x => x.TagId)
-            .Select(x => new GenerationJobRequestPayloadTag(
-                x.TagId,
-                x.Tag.Code,
-                x.Tag.DisplayName,
-                x.Order ?? 0))
-            .ToArray();
-
-        var payload = new GenerationJobRequestPayload(
-            trip.Id,
-            userId,
-            trip.Title.Value,
-            trip.PlaceText?.Value,
-            trip.NoteText,
-            trip.DateFrom,
-            trip.DateTo,
-            trip.StayLengthMinDays,
-            trip.StayLengthMaxDays,
-            trip.PeopleCount,
-            trip.BudgetLevel,
-            trip.Pace,
-            orderedTags);
-
-        try
-        {
-            return Result<string>.Ok(payload.ToJson());
-        }
-        catch (Exception exception)
-        {
-            return Result<string>.Fail(ResultErrors.Unknown($"Failed to serialize generation payload: {exception.Message}"));
-        }
-    }
-
-    private static string ComputeInputHash(string payloadJson)
-    {
-        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(payloadJson));
-        return Convert.ToHexString(hashBytes).ToLowerInvariant();
-    }
 }

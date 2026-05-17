@@ -58,4 +58,12 @@ public sealed class TripPlan
         SavedAt = updatedAt;
         UpdatedAt = updatedAt;
     }
+
+    public void Save(DateTimeOffset savedAt)
+    {
+        Version++;
+        Status = TripPlanStatus.Saved;
+        SavedAt = savedAt;
+        UpdatedAt = savedAt;
+    }
 }

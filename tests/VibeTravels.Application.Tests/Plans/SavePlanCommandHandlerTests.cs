@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VibeTravels.Application.Abstractions.Persistence;
-using VibeTravels.Application.Features.Jobs.Commands;
-using VibeTravels.Application.Features.Jobs.Handlers;
-using VibeTravels.Application.Features.Jobs.Services;
+using VibeTravels.Application.Features.Plans.Commands;
+using VibeTravels.Application.Features.Plans.Handlers;
 using VibeTravels.Application.Features.Trips.Services;
 using VibeTravels.Domain.Entities.Jobs;
 using VibeTravels.Domain.Entities.Plans;
@@ -11,49 +10,27 @@ using VibeTravels.Domain.Entities.Trips;
 using VibeTravels.Domain.Entities.Users;
 using VibeTravels.Domain.ValueObjects;
 
-namespace VibeTravels.Application.Tests.Jobs;
+namespace VibeTravels.Application.Tests.Plans;
 
-public sealed class QueueGenerationJobCommandHandlerTests
+public sealed class SavePlanCommandHandlerTests
 {
     private static readonly Guid UserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid OtherUserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     [Fact]
-    public async Task Handle_QueuesJobAndSnapshot_WhenTripIsReady()
+    public async Task Handle_ReturnsTripNotFound_WhenTripDoesNotBelongToUser()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
+        db.Users.Add(CreateUser(OtherUserId));
 
-        var trip = CreateTrip(UserId, stayMin: 2, stayMax: 5);
-        db.Trips.Add(trip);
-        await db.SaveChangesAsync();
-
-        var handler = CreateHandler(db);
-
-        var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value);
-        Assert.Equal("queued", result.Value!.Job.Status.ToString().ToLowerInvariant());
-
-        Assert.Equal(1, await db.AiGenerationJobs.CountAsync());
-    }
-
-    [Fact]
-    public async Task Handle_ReturnsTripNotFound_WhenTripBelongsToDifferentUser()
-    {
-        await using var db = CreateDbContext();
-        db.Users.Add(CreateUser(UserId));
-        db.Users.Add(CreateUser(Guid.Parse("22222222-2222-2222-2222-222222222222")));
-
-        var trip = CreateTrip(Guid.Parse("22222222-2222-2222-2222-222222222222"), stayMin: 2, stayMax: 5);
-        db.Trips.Add(trip);
+        var foreignTrip = CreateTrip(OtherUserId);
+        db.Trips.Add(foreignTrip);
         await db.SaveChangesAsync();
 
         var handler = CreateHandler(db);
         var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            new SavePlanCommand(UserId, new SavePlanCommandRequest(foreignTrip.Id)),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
@@ -61,79 +38,125 @@ public sealed class QueueGenerationJobCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ReturnsGenerationRequirementsNotMet_WhenStayLengthIsOutOfRange()
+    public async Task Handle_ReturnsPlanNotFound_WhenPlanDoesNotExist()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
-
-        var trip = CreateTrip(UserId, stayMin: 1, stayMax: 1);
+        var trip = CreateTrip(UserId);
         db.Trips.Add(trip);
         await db.SaveChangesAsync();
 
         var handler = CreateHandler(db);
         var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            new SavePlanCommand(UserId, new SavePlanCommandRequest(trip.Id)),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("GENERATION_REQUIREMENTS_NOT_MET", result.Errors[0].Code);
+        Assert.Equal("PLAN_NOT_FOUND", result.Errors[0].Code);
     }
 
     [Fact]
-    public async Task Handle_ReturnsJobAlreadyActive_WhenQueuedJobExists()
+    public async Task Handle_ReturnsInputChangedSinceGeneration_WhenCurrentTripInputDiffersFromGenerationInput()
     {
         await using var db = CreateDbContext();
         db.Users.Add(CreateUser(UserId));
-
-        var trip = CreateTrip(UserId, stayMin: 2, stayMax: 5);
+        var trip = CreateTrip(UserId);
         db.Trips.Add(trip);
 
-        var existingJobResult = AiGenerationJob.CreatePending(
+        var jobResult = AiGenerationJob.CreatePending(
             trip.Id,
             UserId,
             """{"tripId":"123"}""",
-            "hash",
-            DateTimeOffset.UtcNow);
-        Assert.True(existingJobResult.IsSuccess);
+            "different-hash",
+            new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero));
+        Assert.True(jobResult.IsSuccess);
+        Assert.NotNull(jobResult.Value);
 
-        db.AiGenerationJobs.Add(existingJobResult.Value!);
+        db.AiGenerationJobs.Add(jobResult.Value!);
+        db.TripPlans.Add(TripPlan.Create(
+            trip.Id,
+            jobResult.Value!.Id,
+            title: "Generated plan",
+            summary: "Generated summary",
+            createdAt: new DateTimeOffset(2026, 8, 1, 9, 5, 0, TimeSpan.Zero)));
         await db.SaveChangesAsync();
 
         var handler = CreateHandler(db);
         var result = await handler.Handle(
-            new QueueGenerationJobCommand(UserId, new QueueGenerationJobCommandRequest(trip.Id)),
+            new SavePlanCommand(UserId, new SavePlanCommandRequest(trip.Id)),
             CancellationToken.None);
 
         Assert.False(result.IsSuccess);
-        Assert.Equal("JOB_ALREADY_ACTIVE", result.Errors[0].Code);
+        Assert.Equal("INPUT_CHANGED_SINCE_GENERATION", result.Errors[0].Code);
     }
 
-    private static Trip CreateTrip(Guid userId, int stayMin, int stayMax)
+    [Fact]
+    public async Task Handle_SavesPlan_WhenCurrentTripInputMatchesGenerationInput()
     {
-        var createResult = Trip.Create(
+        await using var db = CreateDbContext();
+        db.Users.Add(CreateUser(UserId));
+        var trip = CreateTrip(UserId);
+        db.Trips.Add(trip);
+
+        var fingerprintService = new TripInputFingerprintService();
+        var fingerprintResult = fingerprintService.Build(trip, UserId);
+        Assert.True(fingerprintResult.IsSuccess);
+        Assert.NotNull(fingerprintResult.Value);
+
+        var jobResult = AiGenerationJob.CreatePending(
+            trip.Id,
+            UserId,
+            fingerprintResult.Value!.PayloadJson,
+            fingerprintResult.Value.Hash,
+            new DateTimeOffset(2026, 8, 1, 9, 0, 0, TimeSpan.Zero));
+        Assert.True(jobResult.IsSuccess);
+        Assert.NotNull(jobResult.Value);
+
+        db.AiGenerationJobs.Add(jobResult.Value!);
+        db.TripPlans.Add(TripPlan.Create(
+            trip.Id,
+            jobResult.Value!.Id,
+            title: "Generated plan",
+            summary: "Generated summary",
+            createdAt: new DateTimeOffset(2026, 8, 1, 9, 5, 0, TimeSpan.Zero)));
+        await db.SaveChangesAsync();
+
+        var handler = CreateHandler(db);
+        var result = await handler.Handle(
+            new SavePlanCommand(UserId, new SavePlanCommandRequest(trip.Id)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        Assert.Equal("saved", result.Value!.Result.Status.ToString().ToLowerInvariant());
+        Assert.Equal(2, result.Value.Result.Version);
+        Assert.Equal(trip.Id, result.Value.Result.TripId);
+        Assert.NotEqual(default, result.Value.Result.SavedAt);
+    }
+
+    private static SavePlanCommandHandler CreateHandler(IAppDbContext db)
+        => new(db, new TripInputFingerprintService());
+
+    private static Trip CreateTrip(Guid userId)
+    {
+        var result = Trip.Create(
             userId,
-            title: "Trip",
-            placeText: "Rome",
-            noteText: null,
-            dateFrom: new DateOnly(2026, 5, 1),
-            dateTo: new DateOnly(2026, 5, 3),
-            stayLengthMinDays: stayMin,
-            stayLengthMaxDays: stayMax,
+            title: "Plan trip",
+            placeText: "Porto",
+            noteText: "Food and architecture",
+            dateFrom: new DateOnly(2026, 8, 1),
+            dateTo: new DateOnly(2026, 8, 4),
+            stayLengthMinDays: 2,
+            stayLengthMaxDays: 4,
             peopleCount: 2,
             budgetLevel: "Medium",
             pace: "Normal",
             hasAnyTags: false);
 
-        Assert.True(createResult.IsSuccess);
-        Assert.NotNull(createResult.Value);
-        return createResult.Value!;
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value);
+        return result.Value!;
     }
-
-    private static QueueGenerationJobCommandHandler CreateHandler(IAppDbContext db)
-        => new(
-            db,
-            new GenerationJobStatusMapper(),
-            new TripInputFingerprintService());
 
     private static User CreateUser(Guid id)
     {

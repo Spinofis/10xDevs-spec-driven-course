@@ -82,6 +82,15 @@ public static class TripsEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .AllowAnonymous();
+
+        group.MapPost("/{tripId:guid}/plan/save", SavePlan)
+            .WithName("SavePlan")
+            .Produces<SavePlanResultQueryModel>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .AllowAnonymous();
     }
 
     private static async Task<IResult> ListTrips(
@@ -243,5 +252,21 @@ public static class TripsEndpoints
         var result = await mediator.Send(new UpdatePlanCommand(DevelopmentUserId, commandRequest), cancellationToken);
 
         return result.ToHttpResult(httpContext, onSuccess: payload => Results.Ok(payload.Plan));
+    }
+
+    private static async Task<IResult> SavePlan(
+        Guid tripId,
+        [FromServices] IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var correlationId = httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? Guid.NewGuid().ToString();
+        httpContext.Response.Headers["X-Correlation-Id"] = correlationId;
+
+        var request = new SavePlanCommandRequest(tripId);
+        var result = await mediator.Send(new SavePlanCommand(DevelopmentUserId, request), cancellationToken);
+
+        return result.ToHttpResult(httpContext, onSuccess: payload => Results.Ok(payload.Result));
     }
 }

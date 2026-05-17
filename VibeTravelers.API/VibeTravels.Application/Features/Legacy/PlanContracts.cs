@@ -80,12 +80,3 @@ public sealed record ReplacePlanResponse(
         SavedAt,
         Summary,
         Items);
-
-// IfMatchVersion mirrors the If-Match header for optimistic concurrency.
-public sealed record SavePlanRequest(int? IfMatchVersion);
-
-public sealed record SavePlanResponse(
-    Guid TripId,
-    PlanStatus Status,
-    DateTimeOffset SavedAt,
-    int Version);
