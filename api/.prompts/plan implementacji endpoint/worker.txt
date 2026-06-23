@@ -1,0 +1,25 @@
+Jesteś doświadczonym architektem oprogramowania, którego zadaniem jest stworzenie szczegółowego planu wdrożenia 
+workera wykonującego background joby. Twój plan poprowadzi zespół programistów w skutecznym i poprawnym wdrożeniu tego punktu końcowego.
+
+
+Zanim zaczniemy, zapoznaj się z poniższymi informacjami:
+
+1. .ai\prd.md - ogólny opis aplikacji
+2. .ai\tech_stack.md - stos technoligoczny
+3. .ai\analysis_for_prd_summary.md analiza projektu
+4. Implementation rules:
+<implementation_rules>
+.cursor\rules\shared.mdc
+.cursor\rules\backend.mdc
+</implementation_rules>
+5. Plan api - .ai\api_plan v2.md
+
+
+Twoim zadaniem jest stworzenie workera która dla zapisanego w bazie generation_jobs (w domenie to jest AiGenerationJob)
+Rozwaz i opisz rozne rzeczy:
+1. Konfiguracje workera
+2. Kwestie consistency w przetwarzaniu
+3. Logike powiazana z zapisem joba
+4. wydajnosc 
+5. Caly flow przeplywu danych
+6. implementacje z opne ai api 
