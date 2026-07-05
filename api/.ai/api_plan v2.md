@@ -144,7 +144,9 @@ Stateless logout (client deletes token).
 ```
 
 ### 4.2 GET `/tags`
-List tags (public or authenticated—your choice).
+List tags (currently public / anonymous access).
+
+No query parameters are supported. Results are always returned sorted ascending by `code` (then by `id`). No pagination.
 
 **Response 200**
 ```json
@@ -156,7 +158,7 @@ List tags (public or authenticated—your choice).
 ```
 
 **Errors**
-- `400 VALIDATION_ERROR` (e.g., invalid sort field)
+- None (endpoint takes no input; no validation performed)
 
 ---
 

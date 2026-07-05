@@ -1,0 +1,330 @@
+Implementation Plan: Three Missing Features
+
+Gap Summary
+
+
+
+
+
+
+
+Endpoint
+
+
+
+Status
+
+
+
+What's missing
+
+
+
+
+
+POST /auth/register
+
+
+
+Already implemented
+
+
+
+Optional: auto-create UserProfile on register
+
+
+
+
+
+GET /trips/{tripId}
+
+
+
+Stub only
+
+
+
+IRequest<>, handler, validator, endpoint route
+
+
+
+
+
+GET /me/profile
+
+
+
+Stub only
+
+
+
+Domain entities, DB table, IRequest<>, handler, validator, endpoint
+
+
+
+
+
+PUT /me/profile
+
+
+
+Stub only
+
+
+
+Same as above + write handler + tag replace logic
+
+
+
+Feature 1: GET /trips/{tripId} — Complete the Stub
+
+This is the smallest change. DTOs already exist.
+
+Files to modify
+
+
+
+
+
+[GetTripByIdQuery.cs](api/VibeTravelers.API/VibeTravels.Application/Features/Trips/Queries/GetTripByIdQuery.cs) — add UserId Guid + : IRequest<Result<GetTripByIdQueryResponse>>
+
+
+
+[TripsEndpoints.cs](api/VibeTravelers.API/Endpoints/TripsEndpoints.cs) — register GET /{tripId:guid} route calling GetTripByIdQuery(DevelopmentUserId, request)
+
+Files to create
+
+
+
+
+
+Features/Trips/Queries/GetTripByIdQueryValidator.cs — validate UserId not empty + TripId not empty (follow GetPlanByTripIdQueryValidator pattern)
+
+
+
+Features/Trips/Handlers/GetTripByIdQueryHandler.cs:
+
+
+
+
+
+Check trip existence + ownership (t.UserId == userId && t.DeletedAt == null)
+
+
+
+Load trip with TripTags + Tags included
+
+
+
+Map to GetTripByIdQueryResponse(TripQueryModel trip, IReadOnlyList<TripTagQueryModel> tags)
+
+
+
+Return Result.Fail(ResultErrors.TripNotFound(...)) if not found
+
+Response shape: same as CreateTripCommandResponse — { trip: TripDTO, tags: [...] }.
+
+
+
+Feature 2: GET /me/profile + PUT /me/profile — Full Me Feature
+
+This is the largest feature. It requires changes across all four layers.
+
+Step A — Domain: New Entities
+
+VibeTravels.Domain/Entities/Users/UserProfile.cs (new):
+
+
+
+
+
+Properties: UserId Guid (PK), DefaultBudgetLevel string?, DefaultPeopleCount int?, DefaultPace string?, DefaultNotes string?, IsDefault bool, CreatedAt DateTime, UpdatedAt DateTime
+
+
+
+static UserProfile Create(Guid userId) — returns new profile with defaults
+
+
+
+void Update(string? budgetLevel, int? peopleCount, string? pace, string? notes, bool isDefault) — updates fields + sets UpdatedAt
+
+VibeTravels.Domain/Entities/Users/UserPreferenceTag.cs (new):
+
+
+
+
+
+Properties: UserId Guid, TagId Guid, Order int, CreatedAt DateTime
+
+
+
+static UserPreferenceTag Create(Guid userId, Guid tagId, int order) — returns new tag link
+
+Step B — Infrastructure: EF Configs + DbContext + SQL Migration
+
+New UserProfileConfiguration.cs:
+
+
+
+
+
+Table user_profile
+
+
+
+PK = user_id, FK → users(id) CASCADE
+
+
+
+String-to-enum conversions for DefaultBudgetLevel and DefaultPace (follow TripConfiguration pattern)
+
+New UserPreferenceTagConfiguration.cs:
+
+
+
+
+
+Table user_preference_tags (already exists in DB)
+
+
+
+Composite PK (user_id, tag_id), FKs to users + tags
+
+AppDbContext.cs — add DbSet<UserProfile> UserProfiles + DbSet<UserPreferenceTag> UserPreferenceTags
+
+IAppDbContext.cs — add the same two DbSets
+
+New SQL migration api/Infrastructure/Database/YYYYMMDD_add_user_profile.sql:
+
+CREATE TABLE IF NOT EXISTS user_profile (
+  user_id           uuid    PRIMARY KEY,
+  default_budget_level text NULL,
+  default_people_count integer NULL CHECK (default_people_count IS NULL OR default_people_count > 0),
+  default_pace      text    NULL,
+  default_notes     text    NULL,
+  is_default        boolean NOT NULL DEFAULT true,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT user_profile_user_id_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+Note: user_preference_tags table already exists in the initial migration.
+
+Step C — Application: Commands, Queries, Handlers, Validators
+
+Modify UpsertUserProfileCommand.cs:
+
+public sealed record UpsertUserProfileCommand(
+    Guid UserId,
+    UpsertUserProfileCommandRequest Request) : IRequest<Result<UpsertUserProfileCommandResponse>>;
+
+Modify GetUserProfileQuery.cs:
+
+public sealed record GetUserProfileQuery(
+    Guid UserId,
+    GetUserProfileQueryRequest Request) : IRequest<Result<GetUserProfileQueryResponse>>;
+
+New GetUserProfileQueryValidator.cs — validate UserId not empty (follow two-class pattern: outer validator wraps inner)
+
+New UpsertUserProfileCommandValidator.cs:
+
+
+
+
+
+DefaultPeopleCount > 0 if provided
+
+
+
+PreferenceTags each: TagId not empty, Order >= 0
+
+
+
+No duplicate TagId in the list
+
+New GetUserProfileQueryHandler.cs:
+
+
+
+
+
+Query UserProfiles + UserPreferenceTags with Tags for UserId
+
+
+
+If no profile row exists, return a default empty profile (all nullable fields = null, IsDefault = true)
+
+
+
+Map to GetUserProfileQueryResponse(UserId, UserProfileQueryModel, IReadOnlyList<PreferenceTagQueryModel>)
+
+New UpsertUserProfileCommandHandler.cs:
+
+
+
+
+
+Validate all TagIds exist in Tags table
+
+
+
+Load or create UserProfile for UserId
+
+
+
+Call profile.Update(...) if existing, or UserProfile.Create(userId) if new
+
+
+
+Delete all existing UserPreferenceTags for userId, then insert new ones
+
+
+
+SaveChangesAsync in one transaction
+
+
+
+Return same shape as GetUserProfileQueryResponse
+
+Register new services in Application/DependencyInjection.cs if needed (handlers are auto-discovered; no extra registration unless a read service is extracted).
+
+Step D — API: New Endpoint Group
+
+New MeEndpoints.cs:
+
+GET  /me/profile → GetUserProfileQuery(DevelopmentUserId, ...)
+PUT  /me/profile → UpsertUserProfileCommand(DevelopmentUserId, ...)
+
+
+
+
+
+Both return 200 OK with GetUserProfileQueryResponse shape
+
+
+
+PUT additionally returns 400 (validation) and 404 (tag not found)
+
+Modify Program.cs — add app.MapMeEndpoints()
+
+
+
+Feature 3: User Registration (POST /auth/register)
+
+Already fully implemented — RegisterUserCommandHandler creates a User, validates email uniqueness, saves, returns 201 {}. This matches the API plan exactly.
+
+The one optional enhancement: after _db.Users.Add(user), also add _db.UserProfiles.Add(UserProfile.Create(user.Id)) in RegisterUserCommandHandler. This ensures GET /me/profile always has a row to read and simplifies the GET handler (no need for null-profile fallback logic). We note this as a recommended addition that keeps the Me GET handler simple.
+
+
+
+Implementation Order (recommended)
+
+Step 1 → Add UserProfile + UserPreferenceTag domain entities
+Step 2 → Add EF configurations + DbContext DbSets + SQL migration
+Step 3 → Wire IRequest<> on UpsertUserProfileCommand + GetUserProfileQuery
+Step 4 → Create Me handlers + validators
+Step 5 → Create MeEndpoints.cs + register in Program.cs
+Step 6 → Optionally modify RegisterUserCommandHandler to auto-create UserProfile
+Step 7 → Wire IRequest<> on GetTripByIdQuery
+Step 8 → Create GetTripById validator + handler
+Step 9 → Add GET /{tripId:guid} route to TripsEndpoints.cs
