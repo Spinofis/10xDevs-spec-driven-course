@@ -442,10 +442,14 @@ Soft delete.
 ### 7.1 POST `/trips/{tripId}/generation-jobs`
 Queue (re)generation.
 
+No request body is supported.
+
+`Idempotency-Key` is not currently supported for this endpoint. Retrying the request can create a new job unless an active queued/processing job already blocks it with `409 JOB_ALREADY_ACTIVE`.
+
 **Requirements (server validation)**
-- date range present (`dateFrom`, `dateTo`)
-- stay length present and in [2..21]
-- people count present
+- date range present (`dateFrom`, `dateTo`) and `dateTo >= dateFrom`
+- stay length present, both values in [2..21], and `stayLengthMaxDays >= stayLengthMinDays`
+- people count present and > 0
 - at least one of:
   - `noteText` not empty
   - `>= 2` trip tags
@@ -466,9 +470,10 @@ Queue (re)generation.
 ```
 
 **Errors**
+- `400 VALIDATION_ERROR` (empty tripId)
 - `404 TRIP_NOT_FOUND`
 - `400 GENERATION_REQUIREMENTS_NOT_MET`
-- `409 JOB_ALREADY_ACTIVE` (optional constraint: one active job per trip)
+- `409 JOB_ALREADY_ACTIVE` (one queued/processing job per trip is allowed)
 
 ---
 
@@ -494,6 +499,7 @@ Poll job status.
 ```
 
 **Errors**
+- `400 VALIDATION_ERROR` (empty jobId)
 - `404 JOB_NOT_FOUND`
 
 ---
@@ -502,8 +508,9 @@ Poll job status.
 List jobs for a trip.
 
 **Query params**
-- `limit`, `cursor`
-- `sort` allowed: `requestedAt` (default `-requestedAt`)
+- `limit` (default 20, valid range 1..100), `cursor`
+
+Results are always sorted by `requestedAt` descending, then `id` descending.
 
 **Response 200**
 ```json
@@ -523,6 +530,7 @@ List jobs for a trip.
 ```
 
 **Errors**
+- `400 VALIDATION_ERROR` (empty tripId or invalid limit)
 - `404 TRIP_NOT_FOUND`
 
 ---
@@ -530,7 +538,7 @@ List jobs for a trip.
 ### 7.4 Worker concurrency rule (must-have)
 When a job finishes generating a plan, **before writing `trip_plan`**:
 
-- check if there exists a **newer job** for the same `tripId` (by `requestedAt` or monotonic `generationNo`),
+- check if there exists a **newer job** for the same `tripId` by `requestedAt`,
   with status in: `queued|processing|succeeded`.
 
 If a newer job exists:
