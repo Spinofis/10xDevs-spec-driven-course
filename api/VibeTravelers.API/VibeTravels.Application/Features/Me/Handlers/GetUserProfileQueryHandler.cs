@@ -50,9 +50,9 @@ public sealed class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQ
         else
         {
             profileModel = new UserProfileQueryModel(
-                DefaultBudgetLevel: ParseEnum<BudgetLevel>(profile.DefaultBudgetLevel),
+                DefaultBudgetLevel: EnumParsing.ParseNullable<BudgetLevel>(profile.DefaultBudgetLevel),
                 DefaultPeopleCount: profile.DefaultPeopleCount,
-                DefaultPace: ParseEnum<Pace>(profile.DefaultPace),
+                DefaultPace: EnumParsing.ParseNullable<Pace>(profile.DefaultPace),
                 DefaultNotes: profile.DefaultNotes,
                 IsDefault: profile.IsDefault,
                 CreatedAt: new DateTimeOffset(profile.CreatedAt, TimeSpan.Zero),
@@ -70,14 +70,4 @@ public sealed class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQ
             new GetUserProfileQueryResponse(request.UserId, profileModel, tagModels));
     }
 
-    private static TEnum? ParseEnum<TEnum>(string? value)
-        where TEnum : struct, Enum
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        return Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed)
-            ? parsed
-            : null;
-    }
 }

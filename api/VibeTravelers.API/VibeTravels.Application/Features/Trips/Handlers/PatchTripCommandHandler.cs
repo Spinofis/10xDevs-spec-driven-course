@@ -141,22 +141,12 @@ public sealed class PatchTripCommandHandler : IRequestHandler<PatchTripCommand, 
             trip.StayLengthMinDays,
             trip.StayLengthMaxDays,
             trip.PeopleCount,
-            ParseEnum<BudgetLevel>(trip.BudgetLevel),
-            ParseEnum<Pace>(trip.Pace),
+            EnumParsing.ParseNullable<BudgetLevel>(trip.BudgetLevel),
+            EnumParsing.ParseNullable<Pace>(trip.Pace),
             trip.GeneratedAt,
             trip.HasGeneratedPlan,
             trip.CreatedAt,
             trip.UpdatedAt);
     }
 
-    private static TEnum? ParseEnum<TEnum>(string? value)
-        where TEnum : struct, Enum
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        return Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed)
-            ? parsed
-            : null;
-    }
 }

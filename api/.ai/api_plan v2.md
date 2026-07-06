@@ -169,6 +169,8 @@ No query parameters are supported. Results are always returned sorted ascending 
 ### 5.1 GET `/me/profile`
 Returns user profile plus preference tags.
 
+Returns `200` with the same response shape even when the user has not saved a profile yet. In that case the response contains default/null profile values and an empty `preferenceTags` array.
+
 **Response 200**
 ```json
 {
@@ -184,7 +186,7 @@ Returns user profile plus preference tags.
   },
   "preferenceTags": [
     {
-      "tag": { "id": "uuid", "code": "mountains", "displayName": "Mountains" },
+      "tag": { "id": "uuid", "code": "mountains", "displayName": "Mountains", "createdAt": "timestamp" },
       "order": 1,
       "createdAt": "timestamp"
     }
@@ -213,12 +215,19 @@ Upserts profile and replaces full preference tag set in one call.
 }
 ```
 
-**Response 200**
-Same shape as `GET /me/profile`.
+**Response 204**
+No response body.
+
+After a successful save, the frontend should keep the submitted state locally or call `GET /me/profile` if it needs the canonical server representation.
 
 **Errors**
 - `400 VALIDATION_ERROR`
-  - `defaultPeopleCount` > 0
+  - `profile` required
+  - `preferenceTags` required; send `[]` to clear all preference tags
+  - `defaultPeopleCount` > 0 when provided
+  - `preferenceTags[].tagId` required
+  - `preferenceTags[].order` >= 0
+  - duplicate `preferenceTags[].tagId` values are rejected
 - `404 TAG_NOT_FOUND`
 
 **Side effects**

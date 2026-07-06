@@ -34,6 +34,14 @@ public static class TripsEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .AllowAnonymous();
 
+        group.MapGet("/{tripId:guid}", GetTripById)
+            .WithName("GetTripById")
+            .Produces<GetTripByIdQueryResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .AllowAnonymous();
+
         group.MapPatch("/{tripId:guid}", PatchTrip)
             .WithName("PatchTrip")
             .Produces<PatchTripCommandResponse>(StatusCodes.Status200OK)
@@ -136,6 +144,22 @@ public static class TripsEndpoints
         return result.ToHttpResult(
             httpContext,
             onSuccess: payload => Results.Json(payload, statusCode: StatusCodes.Status201Created));
+    }
+
+    private static async Task<IResult> GetTripById(
+        Guid tripId,
+        [FromServices] IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var correlationId = httpContext.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+            ?? Guid.NewGuid().ToString();
+        httpContext.Response.Headers["X-Correlation-Id"] = correlationId;
+
+        var request = new GetTripByIdQueryRequest(tripId);
+        var result = await mediator.Send(new GetTripByIdQuery(DevelopmentUserId, request), cancellationToken);
+
+        return result.ToHttpResult(httpContext, onSuccess: payload => Results.Ok(payload));
     }
 
     private static async Task<IResult> PatchTrip(

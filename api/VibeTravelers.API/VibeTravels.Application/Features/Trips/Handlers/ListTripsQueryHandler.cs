@@ -120,8 +120,8 @@ public sealed class ListTripsQueryHandler : IRequestHandler<ListTripsQuery, Resu
                 t.StayLengthMinDays,
                 t.StayLengthMaxDays,
                 t.PeopleCount,
-                ParseEnum<BudgetLevel>(t.BudgetLevel),
-                ParseEnum<Pace>(t.Pace),
+                EnumParsing.ParseNullable<BudgetLevel>(t.BudgetLevel),
+                EnumParsing.ParseNullable<Pace>(t.Pace),
                 t.GeneratedAt,
                 t.HasGeneratedPlan,
                 t.CreatedAt,
@@ -252,14 +252,4 @@ public sealed class ListTripsQueryHandler : IRequestHandler<ListTripsQuery, Resu
             || (EF.Property<string>(t, "_title") == lastTitle && t.Id.CompareTo(lastId) > 0));
     }
 
-    private static TEnum? ParseEnum<TEnum>(string? value)
-        where TEnum : struct, Enum
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        return Enum.TryParse<TEnum>(value, ignoreCase: true, out var parsed)
-            ? parsed
-            : null;
-    }
 }
