@@ -572,10 +572,10 @@ Only the newest job result is allowed to persist the plan.
       "title": "string",
       "description": "string|null",
       "locationText": "string|null",
-      "startTime": "HH:mm|null",
+      "itemDate": "timestamp",
       "createdAt": "timestamp",
       "updatedAt": "timestamp",
-      "placeType": "Attraction|Restaurant|Hotel"
+      "placeType": "attraction|restaurant|hotel"
     }
   ]
 }
@@ -604,10 +604,10 @@ Get current plan (if exists).
       "title": "string",
       "description": "string|null",
       "locationText": "string|null",
-      "startTime": "HH:mm|null",
+      "itemDate": "timestamp",
       "createdAt": "timestamp",
       "updatedAt": "timestamp",
-      "placeType": "Attraction|Restaurant|Hotel"
+      "placeType": "attraction|restaurant|hotel"
     }
   ]
 }
@@ -634,10 +634,10 @@ Replace entire plan (manual edit).
       "title": "string",
       "description": "string|null",
       "locationText": "string|null",
-      "startTime": "HH:mm|null",
+      "itemDate": "timestamp",
       "createdAt": "timestamp",
       "updatedAt": "timestamp",
-      "placeType": "Attraction|Restaurant|Hotel"
+      "placeType": "attraction|restaurant|hotel"
     }
   ]
 }
@@ -661,10 +661,10 @@ Replace entire plan (manual edit).
       "title": "string",
       "description": "string|null",
       "locationText": "string|null",
-      "startTime": "HH:mm|null",
+      "itemDate": "timestamp",
       "createdAt": "timestamp",
       "updatedAt": "timestamp",
-      "placeType": "Attraction|Restaurant|Hotel"
+      "placeType": "attraction|restaurant|hotel"
     }
   ]
 }
@@ -673,20 +673,24 @@ Replace entire plan (manual edit).
 **Errors**
 - `404 PLAN_NOT_FOUND`
 - `404 TRIP_NOT_FOUND`
+- `409 JOB_ALREADY_ACTIVE`
 - `400 VALIDATION_ERROR`
-  - `items[].title` required
-  - `dayNumber >= 1`
-  - `order` required
-  - `startTime/endTime` valid HH:mm if present
+  - `items` is required and cannot be empty
+  - `items[].id` is required
+  - `items[].dayNumber >= 1`
+  - `items[].itemDate` is required
+  - `items[].order >= 0`
+  - `items[].title` is required and cannot be whitespace
+  - `items[].createdAt` is required
+  - `items[].updatedAt` is required
+  - `items[].createdAt <= items[].updatedAt`
+  - `items[].placeType` must be `attraction`, `restaurant`, or `hotel`
+  - duplicate `items[].id` values are rejected
 
 ---
 
 ### 8.4 POST `/trips/{tripId}/plan/save`
 Mark plan as saved.
-
-**Optimistic concurrency**
-- Client sends plan version:
-  - `If-Match: "3"`
 
 **Response 200**
 ```json
@@ -701,7 +705,6 @@ Mark plan as saved.
 **Errors**
 - `404 PLAN_NOT_FOUND`
 - `409 INPUT_CHANGED_SINCE_GENERATION` (business rule)
-- `412 PRECONDITION_FAILED` (If-Match mismatch)
 
 **Side effects**
 - Emit `audit_event` with `event_type = plan_saved` (optional but recommended)
