@@ -8,7 +8,4 @@ public sealed record UpsertUserProfileCommandRequest(
     UserProfileCommandModel Profile,
     IReadOnlyList<PreferenceTagCommandModel> PreferenceTags);
 
-public sealed record UpsertUserProfileCommandResponse(
-    Guid UserId,
-    UserProfileQueryModel Profile,
-    IReadOnlyList<PreferenceTagQueryModel> PreferenceTags);
+

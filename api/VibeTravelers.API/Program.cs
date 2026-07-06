@@ -38,6 +38,7 @@ namespace VibeTravelers.API
 
             app.MapAuthEndpoints();
             app.MapTagsEndpoints();
+            app.MapMeEndpoints();
             app.MapTripsEndpoints();
             app.MapGenerationJobsEndpoints();
 

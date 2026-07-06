@@ -10,6 +10,8 @@ namespace VibeTravels.Application.Abstractions.Persistence;
 public interface IAppDbContext
 {
     DbSet<User> Users { get; }
+    DbSet<UserProfile> UserProfiles { get; }
+    DbSet<UserPreferenceTag> UserPreferenceTags { get; }
     DbSet<Tag> Tags { get; }
     DbSet<Trip> Trips { get; }
     DbSet<TripTag> TripTags { get; }

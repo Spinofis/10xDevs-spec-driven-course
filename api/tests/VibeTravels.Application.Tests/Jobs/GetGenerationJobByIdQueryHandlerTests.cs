@@ -153,6 +153,8 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
         }
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+        public DbSet<UserPreferenceTag> UserPreferenceTags => Set<UserPreferenceTag>();
         public DbSet<Tag> Tags => Set<Tag>();
         public DbSet<Trip> Trips => Set<Trip>();
         public DbSet<TripTag> TripTags => Set<TripTag>();
@@ -184,9 +186,16 @@ public sealed class GetGenerationJobByIdQueryHandlerTests
                     value => string.IsNullOrWhiteSpace(value) ? null : TripPlaceText.From(value));
             });
 
+            modelBuilder.Entity<UserProfile>(builder => builder.HasKey(e => e.UserId));
+
             modelBuilder.Entity<TripTag>(builder =>
             {
                 builder.HasKey(e => new { e.TripId, e.TagId });
+            });
+
+            modelBuilder.Entity<UserPreferenceTag>(builder =>
+            {
+                builder.HasKey(e => new { e.UserId, e.TagId });
             });
 
             modelBuilder.Entity<TripPlan>(builder =>
