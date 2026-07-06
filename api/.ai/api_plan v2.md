@@ -243,7 +243,7 @@ After a successful save, the frontend should keep the submitted state locally or
   "id": "uuid",
   "userId": "uuid",
   "title": "string",
-  "placeText": "string",
+  "placeText": "string|null",
   "noteText": "string|null",
 
   "dateFrom": "YYYY-MM-DD|null",
@@ -263,49 +263,62 @@ After a successful save, the frontend should keep the submitted state locally or
 }
 ```
 
+Nullable fields in this DTO: `placeText`, `noteText`, `dateFrom`, `dateTo`, `stayLengthMinDays`, `stayLengthMaxDays`, `peopleCount`, `budgetLevel`, `pace`, `generatedAt`.
+
 ---
 
 ### 6.2 POST `/trips`
-Create a trip with full parameters (no “empty trip” flow).
+Create a trip with full parameters (no "empty trip" flow).
 
 **Request**
 ```json
 {
-  "title": "Trip to Rome",
-  "placeText": "Rome, Italy",
-  "noteText": "We love food and history",
+  "model": {
+    "title": "Trip to Rome",
+    "placeText": "Rome, Italy",
+    "noteText": "We love food and history",
 
-  "dateFrom": "2026-05-01",
-  "dateTo": "2026-05-07",
-  "stayLengthMinDays": 5,
-  "stayLengthMaxDays": 7,
-  "peopleCount": 2,
-  "budgetLevel": "medium",
-  "pace": "normal",
+    "dateFrom": "2026-05-01",
+    "dateTo": "2026-05-07",
+    "stayLengthMinDays": 5,
+    "stayLengthMaxDays": 7,
+    "peopleCount": 2,
+    "budgetLevel": "medium",
+    "pace": "normal",
 
-  "tags": [
-    { "tagId": "uuid", "order": 1 }
-  ]
+    "tags": [
+      { "tagId": "uuid", "order": 1 }
+    ]
+  }
 }
 ```
+
+`tags[].order` is optional. If omitted or `null`, it is stored as `0`; if provided, it must be `>= 0`.
 
 **Response 201**
 ```json
 {
   "trip": { /* Trip DTO */ },
   "tags": [
-    { "tag": { "id": "uuid", "code": "museums", "displayName": "Museums" }, "order": 1, "createdAt": "timestamp" }
+    { "tag": { "id": "uuid", "code": "museums", "displayName": "Museums", "createdAt": "timestamp" }, "order": 1, "createdAt": "timestamp" }
   ]
 }
 ```
 
 **Errors**
 - `400 VALIDATION_ERROR`
+  - `model` required
   - `title` required
-  - `placeText` required
-  - if both dates provided: `dateTo >= dateFrom`
-  - `peopleCount > 0`
-  - `stayLengthMinDays > 0`, `stayLengthMaxDays > 0`
+  - `dateFrom` required
+  - `dateTo` required
+  - `dateTo >= dateFrom`
+  - `stayLengthMinDays` required and > 0
+  - `stayLengthMaxDays` required and > 0
+  - `stayLengthMaxDays >= stayLengthMinDays`
+  - `peopleCount` required and > 0
+  - at least one of `placeText`, `noteText`, or non-empty `tags` required
+  - `tags[].tagId` required
+  - `tags[].order` >= 0 when provided
 - `404 TAG_NOT_FOUND` (if tags included)
 
 ---
@@ -314,10 +327,10 @@ Create a trip with full parameters (no “empty trip” flow).
 List trips with filtering, pagination, sorting.
 
 **Query params**
-- `q` (optional search in title/placeText)
+- `q` (optional search in title/placeText/noteText, max 200 characters)
 - `hasPlan=true|false` (maps to `hasGeneratedPlan`)
 - `includeDeleted=true|false` (default false)
-- `limit`, `cursor`
+- `limit` (default 20, valid range 1..100), `cursor`
 - `sort` allowed:
   - `createdAt`, `generatedAt`, `title`
   - descending: prefix `-`
@@ -345,18 +358,21 @@ Get full trip details including attached tags.
 {
   "trip": { /* Trip DTO */ },
   "tags": [
-    { "tag": { "id": "uuid", "code": "museums", "displayName": "Museums" }, "order": 1, "createdAt": "timestamp" }
+    { "tag": { "id": "uuid", "code": "museums", "displayName": "Museums", "createdAt": "timestamp" }, "order": 1, "createdAt": "timestamp" }
   ]
 }
 ```
 
 **Errors**
+- `400 VALIDATION_ERROR` (empty GUID)
 - `404 TRIP_NOT_FOUND`
 
 ---
 
 ### 6.5 PATCH `/trips/{tripId}`
 Partial update.
+
+Only provided fields are changed. Omitted fields keep their current values.
 
 **Request (partial)**
 ```json
@@ -372,19 +388,40 @@ Partial update.
   "budgetLevel": "low|medium|high|null",
   "pace": "relaxed|normal|fast|null",
 
-    "tags": [
+  "tags": [
     { "tagId": "uuid", "order": 1 }
   ]
 }
 ```
+
+Patch semantics important for clients:
+- request body must contain at least one field
+- `noteText: null` clears the note
+- `title: null` is invalid
+- `placeText: null` is invalid
+- `tags: []` removes all tags
+- `tags` omitted leaves tags unchanged
+- `tags: null` is invalid
+- duplicate `tags[].tagId` values are rejected
+- `tags[].order` is optional; if omitted or `null`, it is stored as `0`
 
 **Response 200**
 ```json
 { "trip": { /* Trip DTO */ } }
 ```
 
+The response does not include `tags`. If the client changes tags and needs the canonical tag list, call `GET /trips/{tripId}` after a successful patch.
+
 **Errors**
 - `400 VALIDATION_ERROR`
+**Validation rules**
+  - `dateTo >= dateFrom` after merging with existing values
+  - `stayLengthMinDays` > 0 when provided
+  - `stayLengthMaxDays` > 0 when provided
+  - `stayLengthMaxDays >= stayLengthMinDays` after merging with existing values
+  - `peopleCount` > 0 when provided
+  - at least one of `placeText`, `noteText`, or tags must remain after patch
+  - unknown tag in `tags`
 - `404 TRIP_NOT_FOUND`
 
 ---
@@ -395,6 +432,7 @@ Soft delete.
 **Response 204**
 
 **Errors**
+- `400 VALIDATION_ERROR` (empty GUID)
 - `404 TRIP_NOT_FOUND`
 
 ---
