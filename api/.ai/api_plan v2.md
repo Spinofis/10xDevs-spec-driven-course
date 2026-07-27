@@ -670,6 +670,8 @@ Replace entire plan (manual edit).
 }
 ```
 
+After a successful manual edit, the plan is persisted as the current plan. The API does not expose a separate finalization or "mark as saved" endpoint.
+
 **Errors**
 - `404 PLAN_NOT_FOUND`
 - `404 TRIP_NOT_FOUND`
@@ -686,28 +688,6 @@ Replace entire plan (manual edit).
   - `items[].createdAt <= items[].updatedAt`
   - `items[].placeType` must be `attraction`, `restaurant`, or `hotel`
   - duplicate `items[].id` values are rejected
-
----
-
-### 8.4 POST `/trips/{tripId}/plan/save`
-Mark plan as saved.
-
-**Response 200**
-```json
-{
-  "tripId": "uuid",
-  "status": "saved",
-  "savedAt": "timestamp",
-  "version": 4
-}
-```
-
-**Errors**
-- `404 PLAN_NOT_FOUND`
-- `409 INPUT_CHANGED_SINCE_GENERATION` (business rule)
-
-**Side effects**
-- Emit `audit_event` with `event_type = plan_saved` (optional but recommended)
 
 ---
 

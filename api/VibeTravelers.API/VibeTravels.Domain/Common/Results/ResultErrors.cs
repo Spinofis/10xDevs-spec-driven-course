@@ -39,13 +39,6 @@ public static class ResultErrors
             Status: HttpStatusCode.NotFound,
             Target: target);
 
-    public static Error InputChangedSinceGeneration(string? target = null)
-        => new(
-            Code: "INPUT_CHANGED_SINCE_GENERATION",
-            Message: "Trip input has changed since the plan was generated.",
-            Status: HttpStatusCode.Conflict,
-            Target: target);
-
     public static Error GenerationRequirementsNotMet(string message, string? target = null)
         => new(
             Code: "GENERATION_REQUIREMENTS_NOT_MET",
