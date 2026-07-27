@@ -51,7 +51,8 @@ Główne endpointy API i ich cele:
 Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
 
 - Każdy główny widok ma stany: ładowanie, pusty stan i błąd.
-- Formularze używają wspólnego komunikatu błędu formularza zamiast błędów przy pojedynczych polach.
+- Formularze pokazują lokalne błędy walidacji bezpośrednio pod właściwym polem.
+- Wspólne podsumowanie błędów formularza służy do błędów zwróconych przez API; błędy z API nie są mapowane z powrotem na pojedyncze pola.
 - Wszystkie pola formularzy mają etykiety, logiczną kolejność tabulacji i widoczny focus.
 - Akcje destrukcyjne i nadpisujące wymagają potwierdzenia: usunięcie wycieczki oraz regeneracja planu.
 - Filtry listy wycieczek są synchronizowane z query params, bez localStorage.
@@ -110,7 +111,8 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - formularz wycieczki,
   - współdzielony wybór tagów,
   - sekcja preferencji wstępnie uzupełniona z profilu,
-  - wspólny komunikat błędu formularza,
+  - komunikaty lokalnej walidacji pod polami,
+  - wspólne podsumowanie błędów API,
   - przycisk „Utwórz wycieczkę”.
 - UX, dostępność i względy bezpieczeństwa:
   - preferencje użytkownika inicjalizują wyłącznie nową wycieczkę i nie nadpisują istniejących danych,
@@ -118,7 +120,7 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - formularz waliduje wymagania tworzenia: tytuł, daty, długość pobytu, liczba osób,
   - UI może sygnalizować, czy dane spełniają ostrzejsze wymagania generacji: notatka, miejsce albo co najmniej dwa tagi,
   - podczas zapisu przycisk jest zablokowany,
-  - błąd `TAG_NOT_FOUND` jest pokazany jako ogólny błąd formularza i sugeruje odświeżenie listy tagów.
+  - błąd `TAG_NOT_FOUND` jest pokazany w podsumowaniu błędów API i sugeruje odświeżenie listy tagów.
 
 ### Widok: Szczegóły wycieczki
 
@@ -136,7 +138,8 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - współdzielony wybór tagów,
   - przycisk zapisu zmian danych wycieczki,
   - przycisk „Generuj plan” albo „Regeneruj plan”,
-  - podsumowanie wymagań generacji pokazujące listę braków lub błędów,
+  - komunikaty lokalnej walidacji wymagań generacji pod właściwymi polami lub kontrolkami,
+  - podsumowanie błędów API generacji,
   - dialog potwierdzenia regeneracji,
   - prosty baner lub inline status oczekiwania po uruchomieniu joba,
   - link/przycisk do podwidoku planu.
@@ -144,12 +147,12 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - `PATCH /trips/{tripId}` aktualizuje lokalny stan bez ponownego pobierania szczegółów, także po zmianie tagów,
   - generowanie jest osobnym krokiem po zapisaniu wycieczki,
   - UI waliduje lokalnie te same podstawowe wymagania generacji co API: obecność i poprawność zakresu dat, długość pobytu w zakresie 2-21 dni, `stayLengthMaxDays >= stayLengthMinDays`, `peopleCount > 0` oraz minimum jedno źródło kontekstu: notatka, miejsce albo co najmniej dwa tagi,
-  - jeśli lokalne wymagania generacji nie są spełnione, UI blokuje generowanie i pokazuje listę braków w podsumowaniu wymagań,
-  - jeśli API zwróci `GENERATION_REQUIREMENTS_NOT_MET` albo `VALIDATION_ERROR`, komunikaty z API są pokazane w tym samym podsumowaniu jako lista błędów,
+  - jeśli lokalne wymagania generacji nie są spełnione, UI blokuje generowanie i pokazuje komunikaty pod polami albo przy kontrolkach, których dotyczą,
+  - jeśli API zwróci `GENERATION_REQUIREMENTS_NOT_MET` albo `VALIDATION_ERROR`, komunikaty z API są pokazane w podsumowaniu błędów API jako lista, bez mapowania na pojedyncze pola,
   - regeneracja wymaga potwierdzenia, bo nadpisuje poprzedni plan,
   - `JOB_ALREADY_ACTIVE` pokazuje informację, że generowanie już trwa,
   - `TRIP_NOT_FOUND` prowadzi do stanu braku dostępu lub usuniętej wycieczki, z linkiem powrotu do listy,
-  - formularz nie pokazuje technicznych szczegółów walidacji przy polach, tylko jedno wspólne podsumowanie błędów, które może zawierać listę komunikatów.
+  - formularz nie pokazuje technicznych szczegółów walidacji; lokalne komunikaty są widoczne pod polami, a odpowiedzi API trafiają do wspólnego podsumowania.
 
 ### Widok: Plan wycieczki
 
@@ -173,10 +176,11 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - formularz edycji planu widoczny tylko w trybie `edit`,
   - edytowalne pole `summary` w formularzu,
   - edytowalne elementy planu w formularzu,
-  - podsumowanie błędów edycji planu pokazujące listę lokalnych błędów walidacji lub błędów z API,
+  - komunikaty lokalnej walidacji pod polami edycji planu,
+  - podsumowanie błędów edycji planu pokazujące listę błędów z API,
   - wizualne oznaczenie typu miejsca: atrakcja, restauracja, hotel,
   - pasek akcji edycji z przyciskami „Zapisz” i „Anuluj” - pokazuja sie tylko w trybie edycji,
-  - przycisk regeneracji z potwierdzeniem i tym samym podsumowaniem wymagań generacji, które działa w szczegółach wycieczki,
+  - przycisk regeneracji z potwierdzeniem, lokalnymi komunikatami walidacji przy polach i tym samym podsumowaniem błędów API generacji, które działa w szczegółach wycieczki,
   - stany loading/empty/error.
 - UX, dostępność i względy bezpieczeństwa:
   - widok planu domyślnie działa w trybie `read`, aby plan był łatwy do czytania i wizualnie spokojniejszy,
@@ -184,9 +188,9 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - po kliknięciu „Edytuj plan” prezentacyjny widok planu zostaje ukryty, a w jego miejscu pojawia się formularz edycji,
   - zapis edycji wysyła pełny aktualny obiekt przez `PUT /trips/{tripId}/plan`,
   - formularz edycji planu waliduje lokalnie podstawowe wymagania zapisu zgodne z API: `items` nie może być puste, `items[].id` jest wymagane, `dayNumber >= 1`, `order >= 0`, `itemDate` jest wymagane, `title` nie może być puste, `createdAt` i `updatedAt` są wymagane, `createdAt <= updatedAt`, `placeType` musi być jednym z `attraction`, `restaurant`, `hotel`, a identyfikatory elementów nie mogą się powtarzać,
-  - jeśli lokalna walidacja planu nie przechodzi, UI blokuje zapis i pokazuje listę błędów w podsumowaniu formularza edycji,
-  - jeśli API zwróci `VALIDATION_ERROR` podczas `PUT /trips/{tripId}/plan`, komunikaty z API są pokazane w tym samym podsumowaniu błędów,
-  - jeśli użytkownik uruchamia regenerację z widoku planu, UI waliduje wymagania generacji tak samo jak w widoku szczegółów i pokazuje listę braków albo błędów API,
+  - jeśli lokalna walidacja planu nie przechodzi, UI blokuje zapis i pokazuje komunikaty pod polami albo przy elementach planu, których dotyczą,
+  - jeśli API zwróci `VALIDATION_ERROR` podczas `PUT /trips/{tripId}/plan`, komunikaty z API są pokazane w podsumowaniu błędów API, bez mapowania na pojedyncze pola,
+  - jeśli użytkownik uruchamia regenerację z widoku planu, UI waliduje wymagania generacji tak samo jak w widoku szczegółów: lokalne braki pokazuje pod polami, a błędy API w podsumowaniu,
   - przycisk „Zapisz” jest aktywny tylko, gdy formularz jest dirty, i zablokowany podczas requestu,
   - po sukcesie formularz jest oznaczany jako czysty albo plan jest odświeżany z API, a UI wraca do trybu `read`,
   - przycisk „Anuluj” wychodzi z trybu edycji i odrzuca lokalne zmiany formularza,
@@ -214,14 +218,15 @@ Zasady UX, dostępności i bezpieczeństwa dla całej aplikacji:
   - formularz preferencji,
   - współdzielony wybór tagów,
   - przycisk zapisu preferencji,
-  - wspólny komunikat błędu formularza,
+  - komunikaty lokalnej walidacji pod polami,
+  - wspólne podsumowanie błędów API,
   - stany loading/empty/error.
 - UX, dostępność i względy bezpieczeństwa:
   - `GET /me/profile` zwraca także pusty profil, więc brak preferencji jest neutralnym stanem formularza,
   - `PUT /me/profile` zastępuje pełny zestaw preferencji i tagów,
   - po sukcesie UI utrzymuje wysłany stan lokalnie albo odświeża profil, jeśli potrzebuje reprezentacji kanonicznej,
   - preferencje są jasno opisane jako domyślne dla nowych wycieczek,
-  - błędy `VALIDATION_ERROR` i `TAG_NOT_FOUND` są prezentowane jako wspólny komunikat.
+  - błędy `VALIDATION_ERROR` i `TAG_NOT_FOUND` zwrócone przez API są prezentowane w podsumowaniu błędów API, bez mapowania na pola.
 
 ### Widoki auth jako późniejsze rozszerzenie
 
@@ -393,11 +398,11 @@ Formularz preferencji użytkownika z domyślnym budżetem, liczbą osób, tempem
 
 ### GenerationAction
 
-Komponent akcji generowania i regenerowania planu. Waliduje lokalnie wymagania generacji, pokazuje listę braków lub błędów API w podsumowaniu, obsługuje potwierdzenie regeneracji oraz prosty stan oczekiwania po utworzeniu joba.
+Komponent akcji generowania i regenerowania planu. Waliduje lokalnie wymagania generacji, pokazuje lokalne braki pod odpowiednimi polami lub kontrolkami, a błędy API w podsumowaniu. Obsługuje potwierdzenie regeneracji oraz prosty stan oczekiwania po utworzeniu joba.
 
 ### PlanEditor
 
-Główny komponent formularza edycji planu, widoczny w trybie `edit`. Obejmuje `summary`, listę dni i elementów planu. Korzysta z mechanizmu dirty formularza, waliduje lokalnie payload planu, pokazuje listę błędów w podsumowaniu i zapisuje pełny plan przez `PUT /trips/{tripId}/plan`.
+Główny komponent formularza edycji planu, widoczny w trybie `edit`. Obejmuje `summary`, listę dni i elementów planu. Korzysta z mechanizmu dirty formularza, waliduje lokalnie payload planu, pokazuje lokalne komunikaty pod polami, a błędy API w podsumowaniu, i zapisuje pełny plan przez `PUT /trips/{tripId}/plan`.
 
 ### PlanDayCard
 
@@ -405,7 +410,7 @@ Widget pojedynczego dnia planu. Grupuje elementy po `dayNumber`, zachowuje kolej
 
 ### PlanItemEditor
 
-Edytowalny element planu obejmujący tytuł, opis, lokalizację, datę/czas, kolejność, numer dnia oraz typ miejsca. Powinien wspierać obsługę klawiaturą, czytelny focus i przekazywać błędy walidacji do wspólnego podsumowania formularza planu.
+Edytowalny element planu obejmujący tytuł, opis, lokalizację, datę/czas, kolejność, numer dnia oraz typ miejsca. Powinien wspierać obsługę klawiaturą, czytelny focus i pokazywać lokalne błędy walidacji pod właściwymi polami.
 
 ### PlaceTypeBadge
 
@@ -421,7 +426,7 @@ Wspólny dialog potwierdzenia dla usuwania wycieczki i regeneracji planu. Musi o
 
 ### ApiErrorBanner
 
-Wspólny komponent komunikatu błędu. Mapuje kody API na czytelne komunikaty, m.in. `VALIDATION_ERROR`, `GENERATION_REQUIREMENTS_NOT_MET`, `TAG_NOT_FOUND`, `TRIP_NOT_FOUND`, `PLAN_NOT_FOUND`, `JOB_ALREADY_ACTIVE`.
+Wspólny komponent komunikatu błędu. Mapuje kody API na czytelne komunikaty, m.in. `VALIDATION_ERROR`, `GENERATION_REQUIREMENTS_NOT_MET`, `TAG_NOT_FOUND`, `TRIP_NOT_FOUND`, `PLAN_NOT_FOUND`, `JOB_ALREADY_ACTIVE`. Nie mapuje błędów API na pojedyncze pola formularza; prezentuje je jako podsumowanie.
 
 ### LoadingState, EmptyState, ErrorState
 
@@ -441,7 +446,7 @@ Zestaw komponentów stanów widoku używany na liście wycieczek, w szczegółac
 | Edycja planu | `/trips/:tripId/plan`, `PlanEditor`, `PlanDayCard`, `PlanItemEditor`. |
 | Zapis planu | `DirtySaveBar`, `PUT /trips/{tripId}/plan`. |
 
-//TO DO  - czy to na pewno powinien byc banner a nie jakis widget? jesli bledow bedzie kilka to ciezko w banerze
+
 | Obsługa błędów | `ApiErrorBanner`, `ErrorState`. |
 | Dostępność | Etykiety pól, focus states, obsługa klawiatury, semantyczna nawigacja. |
 | Bezpieczeństwo | Brak renderowania HTML z danych użytkownika, potwierdzenia akcji destrukcyjnych, miejsce na auth guardy i interceptor. |
