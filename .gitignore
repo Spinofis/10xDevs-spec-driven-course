@@ -87,3 +87,7 @@
 /api/VibeTravelers.API/VibeTravels.Infrastructure/obj
 /api/VibeTravelers.API/VibeTravels.Worker/bin/Debug/net8.0
 /api/VibeTravelers.API/VibeTravels.Worker/obj
+/api/.vs/ProjectEvaluation/vibetravelers.metadata.v9.bin
+/api/.vs/ProjectEvaluation/vibetravelers.projects.v9.bin
+/api/.vs/ProjectEvaluation/vibetravelers.strings.v9.bin
+/app/vibe-travelers-ui/.vscode

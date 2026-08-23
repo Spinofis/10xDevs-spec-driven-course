@@ -445,8 +445,104 @@ Zestaw komponentów stanów widoku używany na liście wycieczek, w szczegółac
 | Usuwanie wycieczki | Akcja delete w `TripList` z `ConfirmDialog`. |
 | Edycja planu | `/trips/:tripId/plan`, `PlanEditor`, `PlanDayCard`, `PlanItemEditor`. |
 | Zapis planu | `DirtySaveBar`, `PUT /trips/{tripId}/plan`. |
-
-
 | Obsługa błędów | `ApiErrorBanner`, `ErrorState`. |
 | Dostępność | Etykiety pól, focus states, obsługa klawiatury, semantyczna nawigacja. |
 | Bezpieczeństwo | Brak renderowania HTML z danych użytkownika, potwierdzenia akcji destrukcyjnych, miejsce na auth guardy i interceptor. |
+
+## 6. Kierunek stylistyczny i zasady UI
+
+Docelowy kierunek stylistyczny VibeTravels powinien być inspirowany nowoczesnymi, miękkimi aplikacjami podróżniczymi: ciepłe neutralne tło, jasne panele, ciemna zieleń, limonkowe CTA, zdjęciowe akcenty miejsc i kompaktowe komponenty o przyjaznym charakterze. Referencją jest estetyka premium travel mobile app, ale przełożona na desktopową aplikację webową: więcej przestrzeni, czytelniejsze formularze i układy stworzone do codziennej pracy z planami.
+
+Ogólny charakter:
+
+- UI ma sprawiać wrażenie lekkiego, przyjaznego i dopracowanego, ale nadal narzędziowego.
+- Styl powinien łączyć klimat podróży z czytelnością aplikacji produktywnej.
+- Widoki nie powinny wyglądać jak klasyczny panel administracyjny ani jak marketingowy landing page.
+- Główne doświadczenie ma przypominać pracę z eleganckim travel plannerem: konkretne dane, ładnie opakowane, bez wizualnego hałasu.
+- Elementy zdjęciowe mogą dodawać klimatu, ale nie mogą zasłaniać danych ani utrudniać czytania.
+
+Paleta i atmosfera:
+
+- Tło aplikacji: ciepły, przygaszony neutral, np. jasny taupe, stone, warm gray lub muted sand.
+- Główne powierzchnie: off-white, ivory albo bardzo jasny warm gray.
+- Tekst główny: bardzo ciemna zieleń, prawie czarny forest green albo neutralny charcoal.
+- Akcent główny: świeży lime/chartreuse używany dla głównych CTA, aktywnych stanów i najważniejszych oznaczeń.
+- Akcent dodatkowy: ciemna zieleń dla przycisków drugorzędnych, nagłówków, ikon i elementów nawigacji.
+- Kolory typów miejsc powinny pasować do tej palety:
+  - atrakcja: lime/olive,
+  - restauracja: ciepły yellow-green lub delikatny amber,
+  - hotel: spokojny sage albo muted teal.
+- Paleta może być ciepła i kremowa, ale nie może stać się monotonną beżową planszą. Kontrast ciemnej zieleni, limonki, zdjęć i neutralnych obramowań jest obowiązkowy.
+
+Layout desktopowy:
+
+- Aplikacja powinna mieć miękki app-shell: ciepłe tło strony, jasny główny obszar treści i wyraźną, ale lekką nawigację.
+- Na desktopie nie kopiować mobilnych ekranów jeden do jednego. Styl kart i pigułek przenieść na szersze, bardziej ergonomiczne układy.
+- Widoki robocze powinny mieć ograniczoną szerokość treści, żeby formularze i plan nie rozlewały się po całym ekranie.
+- Dla list i planu warto stosować układ dwukolumnowy tylko wtedy, gdy poprawia skanowanie, np. kontekst wycieczki z boku i główna treść planu obok.
+- Layout ma być stabilny: walidacja, loading, hover i długie teksty nie powinny przesuwać całej strony.
+
+Karty, panele i przyciski:
+
+- Karty powinny być jasne, miękkie, z subtelnym cieniem lub obramowaniem. Mają wyglądać jak eleganckie travel cards, nie jak ciężkie dashboard tiles.
+- Stosować zaokrąglenia konsekwentnie, ale z umiarem. Komponenty mogą mieć miękki charakter, lecz nie powinny wyglądać jak zabawkowe.
+- Przyciski główne powinny używać limonkowego akcentu i ciemnego tekstu, podobnie do referencji.
+- Przyciski drugorzędne mogą być jasne, obramowane albo ciemnozielone zależnie od kontekstu.
+- Filtry, tagi i typy miejsc mogą korzystać z kształtu pigułek, o ile pozostają czytelne i dostępne z klawiatury.
+- Ikony powinny być proste i funkcjonalne: nawigacja, usuwanie, edycja, zapis, kalendarz, osoby, lokalizacja, typ miejsca.
+
+Zdjęcia i elementy podróżnicze:
+
+- Zdjęcia powinny być używane oszczędnie jako akcenty: miniatury miejsca, nagłówek planu, karta wycieczki albo ilustracyjny placeholder pustego stanu.
+- Jeżeli aplikacja nie ma zdjęć z API, można używać neutralnych placeholderów lub gradientów zdjęciowych tylko tam, gdzie nie udają realnych danych.
+- Zdjęcia w kartach powinny mieć przyciemnienie lub overlay tylko wtedy, gdy tekst na nich zachowuje dobry kontrast.
+- Widok planu nie powinien zależeć od zdjęć. Dane planu muszą być kompletne i czytelne także bez grafiki.
+
+Typografia:
+
+- Typografia powinna być nowoczesna, miękka i czytelna. Preferowana jest neutralna groteska o przyjaznym charakterze.
+- Nagłówki mogą być nieco bardziej wyraziste, ale bez hero-scale typografii w widokach aplikacyjnych.
+- Etykiety pól, metadane i statusy powinny być kompaktowe, ale nie mikroskopijne.
+- Treść planu, szczególnie opisy elementów, musi mieć komfortową wysokość linii.
+
+Widok listy wycieczek:
+
+- Lista może mieć formę eleganckich kart lub tabeli z kartowym rytmem.
+- Każda wycieczka powinna mieć wyraźny tytuł, miejsce, daty, status planu i mały zestaw metadanych.
+- Karty wycieczek mogą mieć mały akcent zdjęciowy lub kolorystyczny, ale szybkie skanowanie jest ważniejsze niż dekoracja.
+- Filtry powinny wyglądać jak lekki travel search bar: wyszukiwarka, pigułki filtrów, sortowanie i prosta paginacja.
+
+Widok planu:
+
+- Tryb `read` powinien być najbardziej dopracowany wizualnie i najbliższy referencji.
+- Plan ma wyglądać jak schludne, premium itinerarium: pionowa lista dni, każdy dzień jako osobny jasny widget, a elementy dnia jako kompaktowe wpisy.
+- Nagłówek dnia powinien być wyraźny, np. „Dzień 1”, data i krótki kontekst.
+- Element planu powinien pokazywać kolejność, typ miejsca, godzinę/datę, tytuł, lokalizację i opis w układzie łatwym do skanowania.
+- Typy miejsc powinny mieć kolorowe, ale subtelne etykiety pasujące do palety.
+- Przycisk „Edytuj plan” ma być widoczny, ale nie powinien dominować nad treścią planu.
+- Tryb `edit` zachowuje tę samą strukturę dni, ale elementy zmieniają się w formularz. Ma być bardziej roboczy, nadal spójny wizualnie z trybem podglądu.
+
+Formularze:
+
+- Formularze powinny być jasne, uporządkowane i podzielone na logiczne sekcje.
+- Pola powinny mieć spokojne obramowania, jasne tła i wyraźne focus states.
+- Lokalne błędy walidacji mogą pojawiać się pod odpowiednimi polami lub kontrolkami.
+- Błędy z API powinny trafiać do wspólnego podsumowania błędów, bez sztucznego mapowania na pola, jeśli API nie zwraca jednoznacznej informacji polowej.
+- Przyciski zapisu powinny jasno komunikować stan: brak zmian, trwa zapis, zapisano, błąd.
+
+Stany i dostępność:
+
+- Loading, empty i error states powinny być lekkie, przyjazne i konkretne.
+- Empty states mogą mieć mały travel akcent, ale nie powinny wyglądać jak landing page.
+- Każda kontrolka musi mieć widoczny focus i sensowną etykietę.
+- Dialogi potwierdzeń muszą zarządzać fokusem i obsługiwać klawiaturę.
+- Kolor nie może być jedynym nośnikiem znaczenia.
+- Kontrast tekstu, szczególnie na limonkowych CTA i zdjęciach, musi być sprawdzony.
+
+Czego unikać:
+
+- Nie tworzyć marketingowego hero jako pierwszego ekranu aplikacji.
+- Nie robić UI zdominowanego przez dekoracyjne gradienty, bokeh, ozdobne plamy i efekty bez funkcji.
+- Nie używać zdjęć jako tła dla kluczowych danych formularza.
+- Nie stosować kart w kartach jako podstawowego układu.
+- Nie kopiować mobilnej referencji dosłownie na desktop; należy przenieść język wizualny, nie proporcje ekranów.

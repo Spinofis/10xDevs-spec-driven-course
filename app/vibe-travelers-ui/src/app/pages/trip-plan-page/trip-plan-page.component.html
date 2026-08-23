@@ -1,0 +1,33 @@
+<section class="page" aria-labelledby="trip-plan-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Itinerarium</p>
+      <h1 id="trip-plan-title">Plan wycieczki</h1>
+      <p>Domyślny tryb podglądu, lokalny tryb edycji i zapis pełnego planu przez `PUT /trips/{{ tripId }}/plan`.</p>
+    </div>
+    <app-trip-workspace-nav [tripId]="tripId" />
+  </header>
+
+  <div class="workspace-layout">
+    <app-trip-context-panel [tripId]="tripId" />
+
+    <section class="panel" aria-labelledby="plan-summary-title">
+      <div class="section-heading">
+        <h2 id="plan-summary-title">Podgląd planu</h2>
+        <button class="button button--secondary" type="button">Edytuj plan</button>
+      </div>
+      <p class="summary-placeholder">PlanEditor placeholder: `summary`, dni pogrupowane po `dayNumber` i elementy posortowane po `order`.</p>
+
+      <div class="plan-day">
+        <h3>Dzień 1</h3>
+        <article class="plan-item">
+          <span class="badge">Atrakcja</span>
+          <div>
+            <h4>Przykładowy punkt planu</h4>
+            <p>PlanItemEditor będzie obsługiwał tytuł, opis, lokalizację, datę, kolejność i typ miejsca.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+</section>

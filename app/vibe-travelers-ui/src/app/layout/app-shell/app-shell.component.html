@@ -1,0 +1,24 @@
+<div class="app-shell">
+  <header class="app-shell__header">
+    <a class="brand" routerLink="/trips" aria-label="VibeTravels - przejdź do listy wycieczek">
+      <span class="brand__mark" aria-hidden="true">VT</span>
+      <span>
+        <strong class="brand__name">VibeTravels</strong>
+        <span class="brand__caption">AI travel planner</span>
+      </span>
+    </a>
+
+    <app-main-navigation />
+
+    <div class="session-slot" aria-label="Stan sesji">
+      <span class="session-slot__dot" aria-hidden="true"></span>
+      <span>Profil lokalny</span>
+    </div>
+  </header>
+
+  <div class="app-shell__status" aria-live="polite"></div>
+
+  <main id="main-content" class="app-shell__main">
+    <router-outlet />
+  </main>
+</div>

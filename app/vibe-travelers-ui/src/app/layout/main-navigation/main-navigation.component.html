@@ -1,0 +1,13 @@
+<nav class="main-navigation" aria-label="Główna nawigacja">
+  @for (item of items; track item.path) {
+    <a
+      class="main-navigation__link"
+      [routerLink]="item.path"
+      routerLinkActive="main-navigation__link--active"
+      ariaCurrentWhenActive="page"
+      [routerLinkActiveOptions]="{ exact: item.exact }"
+    >
+      {{ item.label }}
+    </a>
+  }
+</nav>

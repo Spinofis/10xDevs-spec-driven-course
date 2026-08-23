@@ -1,0 +1,41 @@
+<section class="page" aria-labelledby="trip-details-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Workspace wycieczki</p>
+      <h1 id="trip-details-title">Szczegóły wycieczki</h1>
+      <p>Edycja danych wejściowych, zapis przez `PATCH /trips/{{ tripId }}` i akcja generowania planu.</p>
+    </div>
+    <app-trip-workspace-nav [tripId]="tripId" />
+  </header>
+
+  <div class="workspace-layout">
+    <app-trip-context-panel [tripId]="tripId" />
+
+    <form class="panel form-grid form-grid--two-columns">
+      <div class="section-heading form-grid__wide">
+        <h2>Dane wejściowe</h2>
+        <span class="badge">GenerationAction placeholder</span>
+      </div>
+      <label>
+        Tytuł
+        <input name="title" />
+      </label>
+      <label>
+        Miejsce
+        <input name="place" />
+      </label>
+      <label class="form-grid__wide">
+        Notatka
+        <textarea name="note" rows="5"></textarea>
+      </label>
+      <div class="form-grid__wide tag-placeholder" aria-label="Tagi wycieczki">
+        TagSelector placeholder: tagi przypisane do wycieczki i walidacja źródła kontekstu.
+      </div>
+      <div class="form-actions form-grid__wide">
+        <button class="button button--secondary" type="button">Zapisz zmiany</button>
+        <button class="button button--primary" type="button">Generuj plan</button>
+        <a class="button button--ghost" [routerLink]="['/trips', tripId, 'plan']">Przejdź do planu</a>
+      </div>
+    </form>
+  </div>
+</section>

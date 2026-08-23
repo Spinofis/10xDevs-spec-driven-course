@@ -1,0 +1,18 @@
+<nav class="workspace-nav" aria-label="Nawigacja wycieczki">
+  <a
+    class="workspace-nav__link"
+    [routerLink]="['/trips', tripId, 'details']"
+    routerLinkActive="workspace-nav__link--active"
+    ariaCurrentWhenActive="page"
+  >
+    Szczegóły
+  </a>
+  <a
+    class="workspace-nav__link"
+    [routerLink]="['/trips', tripId, 'plan']"
+    routerLinkActive="workspace-nav__link--active"
+    ariaCurrentWhenActive="page"
+  >
+    Plan
+  </a>
+</nav>

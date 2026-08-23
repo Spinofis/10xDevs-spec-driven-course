@@ -1,0 +1,44 @@
+<section class="page page--narrow" aria-labelledby="preferences-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Profil</p>
+      <h1 id="preferences-title">Preferencje</h1>
+      <p>Domyślne ustawienia używane przy nowych wycieczkach i zapisywane przez `PUT /me/profile`.</p>
+    </div>
+  </header>
+
+  <form class="panel form-grid form-grid--two-columns">
+    <label>
+      Domyślny budżet
+      <select name="defaultBudget">
+        <option value="">Brak domyślnego</option>
+        <option>Ekonomiczny</option>
+        <option>Standard</option>
+        <option>Premium</option>
+      </select>
+    </label>
+    <label>
+      Domyślna liczba osób
+      <input type="number" name="defaultPeopleCount" min="1" />
+    </label>
+    <label>
+      Domyślne tempo
+      <select name="defaultPace">
+        <option value="">Brak domyślnego</option>
+        <option>Spokojne</option>
+        <option>Zbalansowane</option>
+        <option>Intensywne</option>
+      </select>
+    </label>
+    <label class="form-grid__wide">
+      Domyślne notatki
+      <textarea name="defaultNotes" rows="5" placeholder="Preferencje hoteli, jedzenia, atrakcji i rytmu dnia"></textarea>
+    </label>
+    <div class="form-grid__wide tag-placeholder" aria-label="Tagi preferencji">
+      TagSelector placeholder: pełny zestaw tagów preferencji z kolejnością.
+    </div>
+    <div class="form-actions form-grid__wide">
+      <button class="button button--primary" type="button">Zapisz preferencje</button>
+    </div>
+  </form>
+</section>

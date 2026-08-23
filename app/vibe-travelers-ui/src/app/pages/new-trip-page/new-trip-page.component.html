@@ -1,0 +1,68 @@
+<section class="page page--narrow" aria-labelledby="new-trip-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Tworzenie</p>
+      <h1 id="new-trip-title">Nowa wycieczka</h1>
+      <p>Szkielet formularza pod `POST /trips`, z miejscem na inicjalizację preferencjami profilu.</p>
+    </div>
+  </header>
+
+  <form class="panel form-grid form-grid--two-columns">
+    <label>
+      Tytuł
+      <input name="title" placeholder="Weekend w Lizbonie" />
+    </label>
+    <label>
+      Miejsce
+      <input name="place" placeholder="Lizbona, Portugalia" />
+    </label>
+    <label>
+      Data od
+      <input type="date" name="dateFrom" />
+    </label>
+    <label>
+      Data do
+      <input type="date" name="dateTo" />
+    </label>
+    <label>
+      Minimalna długość pobytu
+      <input type="number" name="stayLengthMinDays" min="2" max="21" />
+    </label>
+    <label>
+      Maksymalna długość pobytu
+      <input type="number" name="stayLengthMaxDays" min="2" max="21" />
+    </label>
+    <label>
+      Liczba osób
+      <input type="number" name="peopleCount" min="1" />
+    </label>
+    <label>
+      Budżet
+      <select name="budget">
+        <option value="">Wybierz</option>
+        <option>Ekonomiczny</option>
+        <option>Standard</option>
+        <option>Premium</option>
+      </select>
+    </label>
+    <label>
+      Tempo
+      <select name="pace">
+        <option value="">Wybierz</option>
+        <option>Spokojne</option>
+        <option>Zbalansowane</option>
+        <option>Intensywne</option>
+      </select>
+    </label>
+    <label class="form-grid__wide">
+      Notatka
+      <textarea name="note" rows="5" placeholder="Co jest ważne podczas tej podróży?"></textarea>
+    </label>
+    <div class="form-grid__wide tag-placeholder" aria-label="Tagi">
+      TagSelector placeholder: słownik z GET /tags, minimum dwa tagi jako jedno ze źródeł kontekstu.
+    </div>
+    <div class="form-actions form-grid__wide">
+      <button class="button button--primary" type="button">Utwórz wycieczkę</button>
+    </div>
+  </form>
+</section>

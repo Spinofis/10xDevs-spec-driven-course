@@ -1,0 +1,61 @@
+<section class="page" aria-labelledby="trips-title">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Planner</p>
+      <h1 id="trips-title">Wycieczki</h1>
+      <p>Lista zapisanych wycieczek z miejscem na wyszukiwanie, filtry i paginację kursorową.</p>
+    </div>
+    <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
+  </header>
+
+  <section class="panel" aria-labelledby="trip-filters-title">
+    <h2 id="trip-filters-title">Filtry listy</h2>
+    <form class="form-grid">
+      <label>
+        Szukaj
+        <input type="search" name="q" placeholder="Miasto, tytuł albo notatka" />
+      </label>
+      <label>
+        Status planu
+        <select name="hasPlan">
+          <option value="">Wszystkie</option>
+          <option value="true">Z planem</option>
+          <option value="false">Bez planu</option>
+        </select>
+      </label>
+      <label>
+        Sortowanie
+        <select name="sort">
+          <option value="createdAt">Data utworzenia</option>
+          <option value="generatedAt">Data wygenerowania</option>
+          <option value="title">Tytuł</option>
+        </select>
+      </label>
+      <label>
+        Limit
+        <select name="limit">
+          <option>10</option>
+          <option>20</option>
+          <option>50</option>
+        </select>
+      </label>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="trip-list-title">
+    <div class="section-heading">
+      <h2 id="trip-list-title">Wyniki</h2>
+      <span class="badge">Loading / Empty / Error ready</span>
+    </div>
+
+    <div class="placeholder-list">
+      <article class="trip-row">
+        <div>
+          <h3>Przykładowa wycieczka</h3>
+          <p>Docelowo element otworzy `/trips/:tripId/details`, a delete użyje potwierdzenia.</p>
+        </div>
+        <a class="button button--secondary" routerLink="/trips/demo/details">Otwórz</a>
+      </article>
+    </div>
+  </section>
+</section>
