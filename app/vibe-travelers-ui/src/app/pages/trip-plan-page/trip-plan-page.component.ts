@@ -4,10 +4,9 @@ import { TripContextPanelComponent } from '../../trips/trip-context-panel/trip-c
 import { TripWorkspaceNavComponent } from '../../trips/trip-workspace-nav/trip-workspace-nav.component';
 
 @Component({
-  selector: 'app-trip-plan-page',
-  standalone: true,
-  imports: [TripContextPanelComponent, TripWorkspaceNavComponent],
-  templateUrl: './trip-plan-page.component.html',
+    selector: 'app-trip-plan-page',
+    imports: [TripContextPanelComponent, TripWorkspaceNavComponent],
+    templateUrl: './trip-plan-page.component.html'
 })
 export class TripPlanPageComponent {
   private readonly route = inject(ActivatedRoute);

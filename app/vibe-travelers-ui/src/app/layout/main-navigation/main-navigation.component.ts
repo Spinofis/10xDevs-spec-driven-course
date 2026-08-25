@@ -8,11 +8,10 @@ interface NavigationItem {
 }
 
 @Component({
-  selector: 'app-main-navigation',
-  standalone: true,
-  imports: [RouterLink, RouterLinkActive],
-  templateUrl: './main-navigation.component.html',
-  styleUrl: './main-navigation.component.sass',
+    selector: 'app-main-navigation',
+    imports: [RouterLink, RouterLinkActive],
+    templateUrl: './main-navigation.component.html',
+    styleUrl: './main-navigation.component.sass'
 })
 export class MainNavigationComponent {
   readonly items: readonly NavigationItem[] = [
