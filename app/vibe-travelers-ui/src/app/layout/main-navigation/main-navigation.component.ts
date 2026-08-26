@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 interface NavigationItem {
@@ -11,6 +11,7 @@ interface NavigationItem {
     selector: 'app-main-navigation',
     imports: [RouterLink, RouterLinkActive],
     templateUrl: './main-navigation.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './main-navigation.component.sass'
 })
 export class MainNavigationComponent {

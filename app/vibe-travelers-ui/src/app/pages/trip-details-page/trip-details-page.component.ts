@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TripContextPanelComponent } from '../../trips/trip-context-panel/trip-context-panel.component';
 import { TripWorkspaceNavComponent } from '../../trips/trip-workspace-nav/trip-workspace-nav.component';
@@ -6,6 +6,7 @@ import { TripWorkspaceNavComponent } from '../../trips/trip-workspace-nav/trip-w
 @Component({
     selector: 'app-trip-details-page',
     imports: [RouterLink, TripContextPanelComponent, TripWorkspaceNavComponent],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './trip-details-page.component.html'
 })
 export class TripDetailsPageComponent {
