@@ -9,7 +9,7 @@
     (clearFilters)="clearFilters.emit()"
   />
 } @else if (items.length > 0) {
-  <div class="placeholder-list" [attr.aria-busy]="isLoading">
+  <div class="trip-list" [attr.aria-busy]="isLoading">
     @for (item of items; track item.id) {
       <app-trip-list-row
         [item]="item"

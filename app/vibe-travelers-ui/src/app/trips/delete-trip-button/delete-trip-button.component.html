@@ -4,6 +4,7 @@
   [disabled]="disabled"
   [attr.aria-label]="ariaLabel"
   [attr.aria-busy]="isDeleting"
+  [attr.title]="ariaLabel"
   [class.delete-trip-button--busy]="isDeleting"
   (click)="onClick($event)"
 >
