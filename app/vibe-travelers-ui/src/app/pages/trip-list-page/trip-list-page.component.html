@@ -3,59 +3,235 @@
     <div>
       <p class="eyebrow">Planner</p>
       <h1 id="trips-title">Wycieczki</h1>
-      <p>Lista zapisanych wycieczek z miejscem na wyszukiwanie, filtry i paginację kursorową.</p>
+      <p>Lista zapisanych wycieczek z wyszukiwaniem, filtrami i paginacja kursorowa.</p>
     </div>
     <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
   </header>
 
   <section class="panel" aria-labelledby="trip-filters-title">
     <h2 id="trip-filters-title">Filtry listy</h2>
-    <form class="form-grid">
+    <form class="form-grid form-grid--two-columns" [formGroup]="filtersForm" (ngSubmit)="submitFilters()">
       <label>
         Szukaj
-        <input type="search" name="q" placeholder="Miasto, tytuł albo notatka" />
+        <input
+          type="search"
+          name="q"
+          formControlName="q"
+          maxlength="200"
+          placeholder="Miasto, tytul albo notatka"
+        />
       </label>
       <label>
         Status planu
-        <select name="hasPlan">
-          <option value="">Wszystkie</option>
-          <option value="true">Z planem</option>
-          <option value="false">Bez planu</option>
+        <select name="hasPlan" formControlName="hasPlan">
+          @for (option of hasPlanOptions; track option.value) {
+            <option [ngValue]="option.value">{{ option.label }}</option>
+          }
         </select>
       </label>
       <label>
         Sortowanie
-        <select name="sort">
-          <option value="createdAt">Data utworzenia</option>
-          <option value="generatedAt">Data wygenerowania</option>
-          <option value="title">Tytuł</option>
+        <select name="sort" formControlName="sort">
+          @for (option of sortOptions; track option.value) {
+            <option [ngValue]="option.value">{{ option.label }}</option>
+          }
         </select>
       </label>
       <label>
         Limit
-        <select name="limit">
-          <option>10</option>
-          <option>20</option>
-          <option>50</option>
+        <select name="limit" formControlName="limit">
+          @for (option of limitOptions; track option) {
+            <option [ngValue]="option">{{ option }}</option>
+          }
         </select>
       </label>
+      <div class="filters-actions form-grid__wide">
+        <button class="button button--secondary" type="submit" [disabled]="isLoading()">Zastosuj</button>
+        @if (hasActiveFilters()) {
+          <button class="button button--ghost" type="button" (click)="clearFilters()" [disabled]="isLoading()">
+            Wyczysc filtry
+          </button>
+        }
+        @if (validationMessage(); as message) {
+          <p class="inline-status inline-status--error" role="alert">{{ message }}</p>
+        }
+      </div>
     </form>
   </section>
+
+  @if (error(); as errorVm) {
+    <section class="panel state-banner" role="alert" aria-live="polite">
+      <div>
+        <h2>Nie udalo sie wczytac wycieczek</h2>
+        <p>{{ errorVm.message }}</p>
+        @if (errorVm.correlationId) {
+          <p class="state-banner__meta">Correlation ID: {{ errorVm.correlationId }}</p>
+        }
+      </div>
+      <div class="form-actions">
+        @if (errorVm.canClearFilters) {
+          <button class="button button--ghost" type="button" (click)="clearFilters()">Wyczysc filtry</button>
+        }
+        @if (errorVm.code !== 'VALIDATION_ERROR') {
+          <button class="button button--secondary" type="button" (click)="retry()" [disabled]="isLoading()">
+            Sprobuj ponownie
+          </button>
+        }
+      </div>
+    </section>
+  }
 
   <section class="panel" aria-labelledby="trip-list-title">
     <div class="section-heading">
       <h2 id="trip-list-title">Wyniki</h2>
-      <span class="badge">Loading / Empty / Error ready</span>
+      <span class="badge">{{ resultBadge() }}</span>
     </div>
 
-    <div class="placeholder-list">
-      <article class="trip-row">
-        <div>
-          <h3>Przykładowa wycieczka</h3>
-          <p>Docelowo element otworzy `/trips/:tripId/details`, a delete użyje potwierdzenia.</p>
+    @if (isLoading() && items().length === 0) {
+      <div class="summary-placeholder" aria-live="polite">Laduje zapisane wycieczki...</div>
+    } @else if (!error() && items().length === 0) {
+      <div class="summary-placeholder">
+        @if (hasActiveFilters()) {
+          <p>Nic nie pasuje do wybranych filtrow.</p>
+          <button class="button button--ghost" type="button" (click)="clearFilters()">Wyczysc filtry</button>
+        } @else {
+          <p>Nie masz jeszcze zapisanych wycieczek.</p>
+          <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
+        }
+      </div>
+    } @else if (items().length > 0) {
+      <div class="placeholder-list" [attr.aria-busy]="isLoading()">
+        @for (item of items(); track item.id) {
+          <article
+            class="trip-row trip-list-item"
+            role="link"
+            tabindex="0"
+            [attr.aria-label]="'Otworz szczegoly wycieczki ' + item.title"
+            (click)="openTrip(item)"
+            (keydown)="openTripFromKeyboard($event, item)"
+          >
+            <div class="trip-list-item__body">
+              <div class="trip-list-item__header">
+                <div>
+                  <h3>{{ item.title }}</h3>
+                  <p>{{ item.placeLabel }}</p>
+                </div>
+                <span class="badge" [class.badge--success]="item.planStatusTone === 'success'">
+                  {{ item.planStatusLabel }}
+                </span>
+              </div>
+
+              <p class="trip-list-item__note" [title]="item.noteFullText ?? item.notePreview">
+                {{ item.notePreview }}
+              </p>
+
+              <dl class="trip-list-meta">
+                <div>
+                  <dt>Daty</dt>
+                  <dd>{{ item.dateRangeLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Pobyt</dt>
+                  <dd>{{ item.stayLengthLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Osoby</dt>
+                  <dd>{{ item.peopleCountLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Budzet</dt>
+                  <dd>{{ item.budgetLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Tempo</dt>
+                  <dd>{{ item.paceLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Utworzono</dt>
+                  <dd>{{ item.createdAtLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Plan</dt>
+                  <dd>{{ item.generatedAtLabel }}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="trip-list-actions">
+              <a
+                class="button button--secondary"
+                [routerLink]="['/trips', item.id, 'details']"
+                (click)="$event.stopPropagation()"
+              >
+                Otworz
+              </a>
+              <button
+                class="button button--ghost"
+                type="button"
+                [disabled]="isLoading() || isDeleting(item.id)"
+                [attr.aria-label]="'Usun wycieczke ' + item.title"
+                (click)="requestDelete($event, item)"
+              >
+                @if (isDeleting(item.id)) {
+                  Usuwam
+                } @else {
+                  Usun
+                }
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+
+      @if (isLoading()) {
+        <p class="inline-status" aria-live="polite">Odswiezam wyniki...</p>
+      }
+    }
+
+    @if (items().length > 0 || pagination().pageIndex > 1) {
+      <nav class="trip-pagination" aria-label="Paginacja listy wycieczek">
+        <span>Strona {{ pagination().pageIndex }}</span>
+        <div class="form-actions">
+          <button class="button button--ghost" type="button" (click)="goPrevious()" [disabled]="!canGoBack()">
+            Wstecz
+          </button>
+          <button class="button button--secondary" type="button" (click)="goNext()" [disabled]="!canGoNext()">
+            Dalej
+          </button>
         </div>
-        <a class="button button--secondary" routerLink="/trips/demo/details">Otwórz</a>
-      </article>
-    </div>
+      </nav>
+    }
   </section>
 </section>
+
+@if (pendingDelete(); as trip) {
+  <div class="modal-backdrop" role="presentation" (click)="cancelDelete()">
+    <section
+      class="panel confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-delete-title"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 id="confirm-delete-title">Usun wycieczke</h2>
+      <p>Czy na pewno chcesz usunac wycieczke "{{ trip.title }}"?</p>
+
+      @if (deleteError(); as errorVm) {
+        <p class="inline-status inline-status--error" role="alert">{{ errorVm.message }}</p>
+      }
+
+      <div class="form-actions">
+        <button class="button button--ghost" type="button" (click)="cancelDelete()" [disabled]="isPendingDeleteInProgress()">
+          Anuluj
+        </button>
+        <button class="button button--secondary" type="button" (click)="confirmDelete()" [disabled]="isPendingDeleteInProgress()">
+          @if (isPendingDeleteInProgress()) {
+            Usuwam
+          } @else {
+            Potwierdz usuniecie
+          }
+        </button>
+      </div>
+    </section>
+  </div>
+}
