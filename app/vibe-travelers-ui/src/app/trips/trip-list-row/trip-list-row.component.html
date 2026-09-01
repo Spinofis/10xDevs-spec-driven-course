@@ -1,0 +1,72 @@
+<article
+  class="trip-row trip-list-item"
+  role="link"
+  tabindex="0"
+  [attr.aria-label]="openAriaLabel"
+  (click)="openRow()"
+  (keydown)="openRowFromKeyboard($event)"
+>
+  <div class="trip-list-item__body">
+    <div class="trip-list-item__header">
+      <div>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.placeLabel }}</p>
+      </div>
+      <span class="badge" [class.badge--success]="item.planStatusTone === 'success'">
+        {{ item.planStatusLabel }}
+      </span>
+    </div>
+
+    <div class="trip-note">
+      <p class="trip-list-item__note" [title]="item.noteFullText ?? item.notePreview">
+        {{ item.notePreview }}
+      </p>
+      @if (hasFullNote) {
+        <details class="trip-note__details" (click)="stopRowInteraction($event)" (keydown)="stopRowInteraction($event)">
+          <summary>Pelna notatka</summary>
+          <p>{{ item.noteFullText }}</p>
+        </details>
+      }
+    </div>
+
+    <dl class="trip-list-meta">
+      <div>
+        <dt>Daty</dt>
+        <dd>{{ item.dateRangeLabel }}</dd>
+      </div>
+      <div>
+        <dt>Pobyt</dt>
+        <dd>{{ item.stayLengthLabel }}</dd>
+      </div>
+      <div>
+        <dt>Osoby</dt>
+        <dd>{{ item.peopleCountLabel }}</dd>
+      </div>
+      <div>
+        <dt>Budzet</dt>
+        <dd>{{ item.budgetLabel }}</dd>
+      </div>
+      <div>
+        <dt>Tempo</dt>
+        <dd>{{ item.paceLabel }}</dd>
+      </div>
+      <div>
+        <dt>Utworzono</dt>
+        <dd>{{ item.createdAtLabel }}</dd>
+      </div>
+      <div>
+        <dt>Plan</dt>
+        <dd>{{ item.generatedAtLabel }}</dd>
+      </div>
+    </dl>
+  </div>
+
+  <div class="trip-list-actions">
+    <app-delete-trip-button
+      [tripTitle]="item.title"
+      [disabled]="deleteDisabled"
+      [isDeleting]="isDeleting"
+      (deleteRequested)="requestDelete()"
+    />
+  </div>
+</article>

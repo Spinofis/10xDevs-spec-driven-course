@@ -1,0 +1,50 @@
+<section class="panel" aria-labelledby="trip-filters-title">
+  <h2 id="trip-filters-title">Filtry listy</h2>
+  <form class="form-grid form-grid--two-columns" [formGroup]="filtersForm" (ngSubmit)="filtersSubmit.emit()">
+    <label>
+      Szukaj
+      <input
+        type="search"
+        name="q"
+        formControlName="q"
+        maxlength="200"
+        placeholder="Miasto, tytul albo notatka"
+      />
+    </label>
+    <label>
+      Status planu
+      <select name="hasPlan" formControlName="hasPlan">
+        @for (option of hasPlanOptions; track option.value) {
+          <option [ngValue]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Sortowanie
+      <select name="sort" formControlName="sort">
+        @for (option of sortOptions; track option.value) {
+          <option [ngValue]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Limit
+      <select name="limit" formControlName="limit">
+        @for (option of limitOptions; track option) {
+          <option [ngValue]="option">{{ option }}</option>
+        }
+      </select>
+    </label>
+    <div class="filters-actions form-grid__wide">
+      <button class="button button--secondary" type="submit" [disabled]="isLoading">Zastosuj</button>
+      @if (hasActiveFilters) {
+        <button class="button button--ghost" type="button" (click)="clearFilters.emit()" [disabled]="isLoading">
+          Wyczysc filtry
+        </button>
+      }
+      @if (validationMessage; as message) {
+        <p class="inline-status inline-status--error" role="alert">{{ message }}</p>
+      }
+    </div>
+  </form>
+</section>

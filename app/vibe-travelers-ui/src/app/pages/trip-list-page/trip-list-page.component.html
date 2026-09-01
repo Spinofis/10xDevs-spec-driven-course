@@ -8,56 +8,17 @@
     <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
   </header>
 
-  <section class="panel" aria-labelledby="trip-filters-title">
-    <h2 id="trip-filters-title">Filtry listy</h2>
-    <form class="form-grid form-grid--two-columns" [formGroup]="filtersForm" (ngSubmit)="submitFilters()">
-      <label>
-        Szukaj
-        <input
-          type="search"
-          name="q"
-          formControlName="q"
-          maxlength="200"
-          placeholder="Miasto, tytul albo notatka"
-        />
-      </label>
-      <label>
-        Status planu
-        <select name="hasPlan" formControlName="hasPlan">
-          @for (option of hasPlanOptions; track option.value) {
-            <option [ngValue]="option.value">{{ option.label }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Sortowanie
-        <select name="sort" formControlName="sort">
-          @for (option of sortOptions; track option.value) {
-            <option [ngValue]="option.value">{{ option.label }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Limit
-        <select name="limit" formControlName="limit">
-          @for (option of limitOptions; track option) {
-            <option [ngValue]="option">{{ option }}</option>
-          }
-        </select>
-      </label>
-      <div class="filters-actions form-grid__wide">
-        <button class="button button--secondary" type="submit" [disabled]="isLoading()">Zastosuj</button>
-        @if (hasActiveFilters()) {
-          <button class="button button--ghost" type="button" (click)="clearFilters()" [disabled]="isLoading()">
-            Wyczysc filtry
-          </button>
-        }
-        @if (validationMessage(); as message) {
-          <p class="inline-status inline-status--error" role="alert">{{ message }}</p>
-        }
-      </div>
-    </form>
-  </section>
+  <app-trip-list-toolbar
+    [filtersForm]="filtersForm"
+    [hasPlanOptions]="hasPlanOptions"
+    [sortOptions]="sortOptions"
+    [limitOptions]="limitOptions"
+    [isLoading]="isLoading()"
+    [hasActiveFilters]="hasActiveFilters()"
+    [validationMessage]="validationMessage()"
+    (filtersSubmit)="submitFilters()"
+    (clearFilters)="clearFilters()"
+  />
 
   @if (error(); as errorVm) {
     <section class="panel state-banner" role="alert" aria-live="polite">
@@ -87,106 +48,16 @@
       <span class="badge">{{ resultBadge() }}</span>
     </div>
 
-    @if (isLoading() && items().length === 0) {
-      <div class="summary-placeholder" aria-live="polite">Laduje zapisane wycieczki...</div>
-    } @else if (!error() && items().length === 0) {
-      <div class="summary-placeholder">
-        @if (hasActiveFilters()) {
-          <p>Nic nie pasuje do wybranych filtrow.</p>
-          <button class="button button--ghost" type="button" (click)="clearFilters()">Wyczysc filtry</button>
-        } @else {
-          <p>Nie masz jeszcze zapisanych wycieczek.</p>
-          <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
-        }
-      </div>
-    } @else if (items().length > 0) {
-      <div class="placeholder-list" [attr.aria-busy]="isLoading()">
-        @for (item of items(); track item.id) {
-          <article
-            class="trip-row trip-list-item"
-            role="link"
-            tabindex="0"
-            [attr.aria-label]="'Otworz szczegoly wycieczki ' + item.title"
-            (click)="openTrip(item)"
-            (keydown)="openTripFromKeyboard($event, item)"
-          >
-            <div class="trip-list-item__body">
-              <div class="trip-list-item__header">
-                <div>
-                  <h3>{{ item.title }}</h3>
-                  <p>{{ item.placeLabel }}</p>
-                </div>
-                <span class="badge" [class.badge--success]="item.planStatusTone === 'success'">
-                  {{ item.planStatusLabel }}
-                </span>
-              </div>
-
-              <p class="trip-list-item__note" [title]="item.noteFullText ?? item.notePreview">
-                {{ item.notePreview }}
-              </p>
-
-              <dl class="trip-list-meta">
-                <div>
-                  <dt>Daty</dt>
-                  <dd>{{ item.dateRangeLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Pobyt</dt>
-                  <dd>{{ item.stayLengthLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Osoby</dt>
-                  <dd>{{ item.peopleCountLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Budzet</dt>
-                  <dd>{{ item.budgetLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Tempo</dt>
-                  <dd>{{ item.paceLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Utworzono</dt>
-                  <dd>{{ item.createdAtLabel }}</dd>
-                </div>
-                <div>
-                  <dt>Plan</dt>
-                  <dd>{{ item.generatedAtLabel }}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div class="trip-list-actions">
-              <a
-                class="button button--secondary"
-                [routerLink]="['/trips', item.id, 'details']"
-                (click)="$event.stopPropagation()"
-              >
-                Otworz
-              </a>
-              <button
-                class="button button--ghost"
-                type="button"
-                [disabled]="isLoading() || isDeleting(item.id)"
-                [attr.aria-label]="'Usun wycieczke ' + item.title"
-                (click)="requestDelete($event, item)"
-              >
-                @if (isDeleting(item.id)) {
-                  Usuwam
-                } @else {
-                  Usun
-                }
-              </button>
-            </div>
-          </article>
-        }
-      </div>
-
-      @if (isLoading()) {
-        <p class="inline-status" aria-live="polite">Odswiezam wyniki...</p>
-      }
-    }
+    <app-trip-list
+      [items]="items()"
+      [isLoading]="isLoading()"
+      [error]="error()"
+      [hasActiveFilters]="hasActiveFilters()"
+      [deletingTripId]="deletingTripId()"
+      (openTrip)="openTrip($event)"
+      (requestDelete)="requestDelete($event)"
+      (clearFilters)="clearFilters()"
+    />
 
     @if (items().length > 0 || pagination().pageIndex > 1) {
       <nav class="trip-pagination" aria-label="Paginacja listy wycieczek">
@@ -221,10 +92,20 @@
       }
 
       <div class="form-actions">
-        <button class="button button--ghost" type="button" (click)="cancelDelete()" [disabled]="isPendingDeleteInProgress()">
+        <button
+          class="button button--ghost"
+          type="button"
+          (click)="cancelDelete()"
+          [disabled]="isPendingDeleteInProgress()"
+        >
           Anuluj
         </button>
-        <button class="button button--secondary" type="button" (click)="confirmDelete()" [disabled]="isPendingDeleteInProgress()">
+        <button
+          class="button button--secondary"
+          type="button"
+          (click)="confirmDelete()"
+          [disabled]="isPendingDeleteInProgress()"
+        >
           @if (isPendingDeleteInProgress()) {
             Usuwam
           } @else {

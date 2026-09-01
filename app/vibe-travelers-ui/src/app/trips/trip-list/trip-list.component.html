@@ -1,0 +1,29 @@
+@if (isLoading && items.length === 0) {
+  <div class="summary-placeholder" aria-live="polite">Laduje zapisane wycieczki...</div>
+} @else if (!error && items.length === 0) {
+  <div class="summary-placeholder">
+    @if (hasActiveFilters) {
+      <p>Nic nie pasuje do wybranych filtrow.</p>
+      <button class="button button--ghost" type="button" (click)="clearFilters.emit()">Wyczysc filtry</button>
+    } @else {
+      <p>Nie masz jeszcze zapisanych wycieczek.</p>
+      <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
+    }
+  </div>
+} @else if (items.length > 0) {
+  <div class="placeholder-list" [attr.aria-busy]="isLoading">
+    @for (item of items; track item.id) {
+      <app-trip-list-row
+        [item]="item"
+        [deleteDisabled]="isLoading || isDeleting(item.id)"
+        [isDeleting]="isDeleting(item.id)"
+        (open)="openTrip.emit($event)"
+        (deleteRequested)="requestDelete.emit($event)"
+      />
+    }
+  </div>
+
+  @if (isLoading) {
+    <p class="inline-status" aria-live="polite">Odswiezam wyniki...</p>
+  }
+}

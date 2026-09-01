@@ -7,6 +7,7 @@ import { debounceTime, distinctUntilChanged, merge } from 'rxjs';
 import { TripsApiService } from './trips-api.service';
 import { mapHttpErrorToApiError } from './trip-api-error.mapper';
 import { isValidTripId } from './trip-id.util';
+import { TripListFiltersForm } from './trip-list-form.model';
 import { mapTripDtoToListItemVm } from './trip-list.mapper';
 import {
   DEFAULT_CURSOR_PAGE_STATE,
@@ -38,7 +39,7 @@ export class TripListStore {
 
   private loadSequence = 0;
 
-  readonly filtersForm = new FormGroup({
+  readonly filtersForm: TripListFiltersForm = new FormGroup({
     q: new FormControl(DEFAULT_TRIP_LIST_FILTERS.q, {
       nonNullable: true,
       validators: [Validators.maxLength(TRIP_SEARCH_MAX_LENGTH)],
@@ -124,15 +125,6 @@ export class TripListStore {
     void this.router.navigate(['/trips', item.id, 'details']);
   }
 
-  openTripFromKeyboard(event: KeyboardEvent, item: TripListItemVm): void {
-    if (event.key !== 'Enter' && event.key !== ' ') {
-      return;
-    }
-
-    event.preventDefault();
-    this.openTrip(item);
-  }
-
   goNext(): void {
     const pagination = this.pagination();
     const nextCursor = pagination.nextCursor;
@@ -169,9 +161,7 @@ export class TripListStore {
     this.navigateWithFilters(this.filters(), previousCursor);
   }
 
-  requestDelete(event: Event, item: TripListItemVm): void {
-    event.stopPropagation();
-
+  requestDelete(item: TripListItemVm): void {
     if (!isValidTripId(item.id) || this.isLoading()) {
       return;
     }

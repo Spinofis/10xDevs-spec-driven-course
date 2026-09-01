@@ -1,15 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { TripListComponent } from '../../trips/trip-list/trip-list.component';
 import { TRIP_LIMIT_OPTIONS } from '../../trips/trip-list-query-params';
 import { TripListStore } from '../../trips/trip-list-store.service';
 import { TRIP_HAS_PLAN_OPTIONS, TRIP_SORT_OPTIONS } from '../../trips/trip-list-options';
+import { TripListToolbarComponent } from '../../trips/trip-list-toolbar/trip-list-toolbar.component';
 import { TripListItemVm } from '../../trips/trips.models';
 
 @Component({
   selector: 'app-trip-list-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [RouterLink, TripListComponent, TripListToolbarComponent],
   providers: [TripListStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './trip-list-page.component.html',
@@ -27,6 +28,7 @@ export class TripListPageComponent {
   readonly error = this.store.error;
   readonly deleteError = this.store.deleteError;
   readonly pagination = this.store.pagination;
+  readonly deletingTripId = this.store.deletingTripId;
   readonly pendingDelete = this.store.pendingDelete;
   readonly hasActiveFilters = this.store.hasActiveFilters;
   readonly canGoBack = this.store.canGoBack;
@@ -51,10 +53,6 @@ export class TripListPageComponent {
     this.store.openTrip(item);
   }
 
-  openTripFromKeyboard(event: KeyboardEvent, item: TripListItemVm): void {
-    this.store.openTripFromKeyboard(event, item);
-  }
-
   goNext(): void {
     this.store.goNext();
   }
@@ -63,8 +61,8 @@ export class TripListPageComponent {
     this.store.goPrevious();
   }
 
-  requestDelete(event: Event, item: TripListItemVm): void {
-    this.store.requestDelete(event, item);
+  requestDelete(item: TripListItemVm): void {
+    this.store.requestDelete(item);
   }
 
   cancelDelete(): void {
