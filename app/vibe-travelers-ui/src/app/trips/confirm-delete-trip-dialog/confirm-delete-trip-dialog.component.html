@@ -1,0 +1,37 @@
+@if (trip; as selectedTrip) {
+  <div class="modal-backdrop" role="presentation" (click)="requestCancel()" (keydown.escape)="requestCancel()">
+    <section
+      class="panel confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-delete-title"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 id="confirm-delete-title">Usun wycieczke</h2>
+      <p>Czy na pewno chcesz usunac wycieczke "{{ selectedTrip.title }}"?</p>
+
+      @if (error; as errorVm) {
+        <p class="inline-status inline-status--error" role="alert">{{ errorVm.message }}</p>
+      }
+
+      <div class="form-actions">
+        <button
+          #cancelButton
+          class="button button--ghost"
+          type="button"
+          (click)="requestCancel()"
+          [disabled]="isDeleting"
+        >
+          Anuluj
+        </button>
+        <button class="button button--secondary" type="button" (click)="requestConfirm()" [disabled]="!canConfirm">
+          @if (isDeleting) {
+            Usuwam
+          } @else {
+            Potwierdz usuniecie
+          }
+        </button>
+      </div>
+    </section>
+  </div>
+}

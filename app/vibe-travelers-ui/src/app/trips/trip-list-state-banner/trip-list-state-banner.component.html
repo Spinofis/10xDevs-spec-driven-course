@@ -1,0 +1,35 @@
+<section
+  class="trip-list-state"
+  [class.panel]="asPanel"
+  [class.summary-placeholder]="!asPanel"
+  [attr.role]="role"
+  [attr.aria-live]="ariaLive"
+>
+  <div>
+    @if (heading; as headingText) {
+      <h2>{{ headingText }}</h2>
+    }
+    <p>{{ message }}</p>
+    @if (correlationId) {
+      <p class="trip-list-state__meta">Correlation ID: {{ correlationId }}</p>
+    }
+  </div>
+
+  @if (canClearFilters || canRetry || showCreateLink) {
+    <div class="form-actions">
+      @if (canClearFilters) {
+        <button class="button button--ghost" type="button" (click)="clearFilters.emit()" [disabled]="isLoading">
+          Wyczysc filtry
+        </button>
+      }
+      @if (canRetry) {
+        <button class="button button--secondary" type="button" (click)="retry.emit()" [disabled]="isLoading">
+          Sprobuj ponownie
+        </button>
+      }
+      @if (showCreateLink) {
+        <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
+      }
+    </div>
+  }
+</section>

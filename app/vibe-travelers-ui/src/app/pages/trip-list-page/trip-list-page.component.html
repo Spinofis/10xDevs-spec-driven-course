@@ -21,25 +21,18 @@
   />
 
   @if (error(); as errorVm) {
-    <section class="panel state-banner" role="alert" aria-live="polite">
-      <div>
-        <h2>Nie udalo sie wczytac wycieczek</h2>
-        <p>{{ errorVm.message }}</p>
-        @if (errorVm.correlationId) {
-          <p class="state-banner__meta">Correlation ID: {{ errorVm.correlationId }}</p>
-        }
-      </div>
-      <div class="form-actions">
-        @if (errorVm.canClearFilters) {
-          <button class="button button--ghost" type="button" (click)="clearFilters()">Wyczysc filtry</button>
-        }
-        @if (errorVm.code !== 'VALIDATION_ERROR') {
-          <button class="button button--secondary" type="button" (click)="retry()" [disabled]="isLoading()">
-            Sprobuj ponownie
-          </button>
-        }
-      </div>
-    </section>
+    <app-trip-list-state-banner
+      state="error"
+      heading="Nie udalo sie wczytac wycieczek"
+      [message]="errorVm.message"
+      [correlationId]="errorVm.correlationId ?? null"
+      [asPanel]="true"
+      [canClearFilters]="errorVm.canClearFilters"
+      [canRetry]="errorVm.code !== 'VALIDATION_ERROR'"
+      [isLoading]="isLoading()"
+      (clearFilters)="clearFilters()"
+      (retry)="retry()"
+    />
   }
 
   <section class="panel" aria-labelledby="trip-list-title">
@@ -60,59 +53,22 @@
     />
 
     @if (items().length > 0 || pagination().pageIndex > 1) {
-      <nav class="trip-pagination" aria-label="Paginacja listy wycieczek">
-        <span>Strona {{ pagination().pageIndex }}</span>
-        <div class="form-actions">
-          <button class="button button--ghost" type="button" (click)="goPrevious()" [disabled]="!canGoBack()">
-            Wstecz
-          </button>
-          <button class="button button--secondary" type="button" (click)="goNext()" [disabled]="!canGoNext()">
-            Dalej
-          </button>
-        </div>
-      </nav>
+      <app-trip-list-pagination
+        [nextCursor]="pagination().nextCursor"
+        [canGoBack]="canGoBack()"
+        [isLoading]="isLoading()"
+        [pageIndex]="pagination().pageIndex"
+        (previous)="goPrevious()"
+        (next)="goNext()"
+      />
     }
   </section>
 </section>
 
-@if (pendingDelete(); as trip) {
-  <div class="modal-backdrop" role="presentation" (click)="cancelDelete()">
-    <section
-      class="panel confirm-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-delete-title"
-      (click)="$event.stopPropagation()"
-    >
-      <h2 id="confirm-delete-title">Usun wycieczke</h2>
-      <p>Czy na pewno chcesz usunac wycieczke "{{ trip.title }}"?</p>
-
-      @if (deleteError(); as errorVm) {
-        <p class="inline-status inline-status--error" role="alert">{{ errorVm.message }}</p>
-      }
-
-      <div class="form-actions">
-        <button
-          class="button button--ghost"
-          type="button"
-          (click)="cancelDelete()"
-          [disabled]="isPendingDeleteInProgress()"
-        >
-          Anuluj
-        </button>
-        <button
-          class="button button--secondary"
-          type="button"
-          (click)="confirmDelete()"
-          [disabled]="isPendingDeleteInProgress()"
-        >
-          @if (isPendingDeleteInProgress()) {
-            Usuwam
-          } @else {
-            Potwierdz usuniecie
-          }
-        </button>
-      </div>
-    </section>
-  </div>
-}
+<app-confirm-delete-trip-dialog
+  [trip]="pendingDelete()"
+  [isDeleting]="isPendingDeleteInProgress()"
+  [error]="deleteError()"
+  (confirm)="confirmDelete()"
+  (cancel)="cancelDelete()"
+/>

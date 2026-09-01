@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
 import { ApiErrorVm, TripListItemVm } from '../trips.models';
+import { TripListStateBannerComponent } from '../trip-list-state-banner/trip-list-state-banner.component';
 import { TripListRowComponent } from '../trip-list-row/trip-list-row.component';
 
 @Component({
   selector: 'app-trip-list',
-  imports: [RouterLink, TripListRowComponent],
+  imports: [TripListRowComponent, TripListStateBannerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './trip-list.component.html',
   styleUrl: './trip-list.component.sass',

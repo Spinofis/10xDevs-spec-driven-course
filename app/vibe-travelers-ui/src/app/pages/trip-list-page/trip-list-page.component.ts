@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { ConfirmDeleteTripDialogComponent } from '../../trips/confirm-delete-trip-dialog/confirm-delete-trip-dialog.component';
 import { TripListComponent } from '../../trips/trip-list/trip-list.component';
+import { TripListPaginationComponent } from '../../trips/trip-list-pagination/trip-list-pagination.component';
 import { TRIP_LIMIT_OPTIONS } from '../../trips/trip-list-query-params';
+import { TripListStateBannerComponent } from '../../trips/trip-list-state-banner/trip-list-state-banner.component';
 import { TripListStore } from '../../trips/trip-list-store.service';
 import { TRIP_HAS_PLAN_OPTIONS, TRIP_SORT_OPTIONS } from '../../trips/trip-list-options';
 import { TripListToolbarComponent } from '../../trips/trip-list-toolbar/trip-list-toolbar.component';
@@ -10,11 +13,17 @@ import { TripListItemVm } from '../../trips/trips.models';
 
 @Component({
   selector: 'app-trip-list-page',
-  imports: [RouterLink, TripListComponent, TripListToolbarComponent],
+  imports: [
+    ConfirmDeleteTripDialogComponent,
+    RouterLink,
+    TripListComponent,
+    TripListPaginationComponent,
+    TripListStateBannerComponent,
+    TripListToolbarComponent,
+  ],
   providers: [TripListStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './trip-list-page.component.html',
-  styleUrl: './trip-list-page.component.sass',
 })
 export class TripListPageComponent {
   private readonly store = inject(TripListStore);
@@ -32,7 +41,6 @@ export class TripListPageComponent {
   readonly pendingDelete = this.store.pendingDelete;
   readonly hasActiveFilters = this.store.hasActiveFilters;
   readonly canGoBack = this.store.canGoBack;
-  readonly canGoNext = this.store.canGoNext;
   readonly isPendingDeleteInProgress = this.store.isPendingDeleteInProgress;
   readonly resultBadge = this.store.resultBadge;
   readonly validationMessage = this.store.validationMessage;
@@ -73,7 +81,4 @@ export class TripListPageComponent {
     this.store.confirmDelete();
   }
 
-  isDeleting(itemId: string): boolean {
-    return this.store.isDeleting(itemId);
-  }
 }

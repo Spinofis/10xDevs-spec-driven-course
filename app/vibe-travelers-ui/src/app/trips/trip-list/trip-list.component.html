@@ -1,15 +1,13 @@
 @if (isLoading && items.length === 0) {
-  <div class="summary-placeholder" aria-live="polite">Laduje zapisane wycieczki...</div>
+  <app-trip-list-state-banner state="loading" message="Laduje zapisane wycieczki..." />
 } @else if (!error && items.length === 0) {
-  <div class="summary-placeholder">
-    @if (hasActiveFilters) {
-      <p>Nic nie pasuje do wybranych filtrow.</p>
-      <button class="button button--ghost" type="button" (click)="clearFilters.emit()">Wyczysc filtry</button>
-    } @else {
-      <p>Nie masz jeszcze zapisanych wycieczek.</p>
-      <a class="button button--primary" routerLink="/trips/new">Nowa wycieczka</a>
-    }
-  </div>
+  <app-trip-list-state-banner
+    state="empty"
+    [message]="hasActiveFilters ? 'Nic nie pasuje do wybranych filtrow.' : 'Nie masz jeszcze zapisanych wycieczek.'"
+    [canClearFilters]="hasActiveFilters"
+    [showCreateLink]="!hasActiveFilters"
+    (clearFilters)="clearFilters.emit()"
+  />
 } @else if (items.length > 0) {
   <div class="placeholder-list" [attr.aria-busy]="isLoading">
     @for (item of items; track item.id) {

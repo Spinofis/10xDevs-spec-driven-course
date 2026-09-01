@@ -1,0 +1,11 @@
+<nav class="trip-pagination" aria-label="Paginacja listy wycieczek">
+  <span>Strona {{ pageIndex }}</span>
+  <div class="form-actions">
+    <button class="button button--ghost" type="button" (click)="previous.emit()" [disabled]="!canGoPrevious">
+      Wstecz
+    </button>
+    <button class="button button--secondary" type="button" (click)="next.emit()" [disabled]="!canGoNext">
+      Dalej
+    </button>
+  </div>
+</nav>
